@@ -8,9 +8,15 @@
     "scheme": "plantwhisperer",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "We need camera access to photograph your plant for identification.",
+        "NSPhotoLibraryUsageDescription": "We need access to your photos if you pick an image."
+      }
     },
+
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -19,14 +25,21 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "CAMERA"
+      ]
     },
+
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png"
     },
+
     "plugins": [
       "expo-router",
+      "expo-camera",
+      "expo-image-picker",
       [
         "expo-splash-screen",
         {
@@ -34,12 +47,15 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff",
-          "dark": {
-            "backgroundColor": "#000000"
-          }
+          "dark": { "backgroundColor": "#000000" }
         }
       ]
     ],
+
+    "extra": {
+      "expoPublicPlantNetApiKey": "REPLACE_WITH_YOUR_API_KEY"
+    },
+
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
