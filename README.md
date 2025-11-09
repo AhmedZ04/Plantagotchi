@@ -1,4 +1,4 @@
-# plantwhisperer
+# Plantogochi
 
 Include a ReadME file explaining your project, how to access it, and any extra materials (slides, links, credits)
 Maximum 250 words
