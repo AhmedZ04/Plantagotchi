@@ -56,7 +56,8 @@
 
     "extra": {
       "expoPublicPlantNetApiKey": "2b10N7ov5pGfLVJSReqAiOOlWu",
-      "expoPublicPerenualApiKey": "sk-kD2769113247e772d13393"
+      "expoPublicPerenualApiKey": "sk-kD2769113247e772d13393",
+      "expoPublicPlantbookToken": "8576354acc90b893ef17145afeb66bd2e4d94d5d"
     },
 
     "experiments": {
