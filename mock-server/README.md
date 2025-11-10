@@ -35,6 +35,15 @@ npm run check-port
 
 If port 4000 is already in use, you'll see an error. Here's how to free it:
 
+### Quick Fix (Recommended):
+```bash
+npm run free-port
+```
+
+This will automatically find and kill any process using port 4000.
+
+### Manual Fix:
+
 ### Windows:
 ```bash
 # Find the process using port 4000

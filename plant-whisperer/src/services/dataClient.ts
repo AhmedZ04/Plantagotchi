@@ -107,7 +107,16 @@ class DataClient {
 
       this.ws.onmessage = (event) => {
         try {
-          const payload: WireStatePayload = JSON.parse(event.data);
+          const data = JSON.parse(event.data);
+          
+          // Only process messages that have the sensor data format (line and json fields)
+          // Ignore any other message types (like mode changes, etc.)
+          if (!data.line || !data.json) {
+            // Not a sensor data message, ignore it silently
+            return;
+          }
+          
+          const payload: WireStatePayload = data;
           
           // Validate payload has required fields
           if (

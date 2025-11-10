@@ -15,6 +15,7 @@ import {
   Reminder,
   EmotionState,
   PlantMood,
+  PlantCurrentState,
 } from '../types/plant';
 import { dataClient, ConnectionStatus } from '../services/dataClient';
 import {
@@ -26,15 +27,18 @@ import {
   deriveEmotionState,
   getEmotionMessage,
   setMq2Baseline,
+  computePlantCurrentState,
 } from '../services/plantModel';
 import { SensorState } from '../types/plant';
 
 interface UsePlantStateReturn {
   // State
   vitals: PlantVitals;
+  rawVitals: PlantVitalsRaw; // Expose raw sensor values for HealthBars
   scores: PlantScores | null;
   mood: PlantMood;
   emotion: EmotionState;
+  currentState: PlantCurrentState | null;
   eventLog: PlantEvent[];
   pendingReminder: Reminder | null;
   simulationMode: boolean;
@@ -67,14 +71,14 @@ const DEFAULT_SCORES: PlantScores = {
   bioSignalScore: 50,
 };
 
-// Default raw vitals (Birkin-friendly)
+// Default raw vitals (based on sensor guidelines)
 const DEFAULT_RAW_VITALS: PlantVitalsRaw = {
-  soilMoisture: 550,
-  temperature: 23,
-  humidity: 60,
-  mq2: 200,
-  raindrop: 900,
-  bio: 8.0,
+  soilMoisture: 550, // Level 2 (okay/moist range: 400-699)
+  temperature: 23, // Within optimal range (13-27°C)
+  humidity: 60, // Normal air range (35-80%)
+  mq2: 70, // Normal baseline (~70)
+  raindrop: 1020, // Dry (~1020)
+  bio: 500, // Resting range (400-600)
   timestamp: new Date(),
 };
 
@@ -86,6 +90,7 @@ export function usePlantState(): UsePlantStateReturn {
   const [scores, setScores] = useState<PlantScores | null>(DEFAULT_SCORES);
   const [mood, setMood] = useState<PlantMood>('ok');
   const [emotion, setEmotion] = useState<EmotionState>('I_AM_OKAY');
+  const [currentState, setCurrentState] = useState<PlantCurrentState | null>(null);
   const [vitals, setVitals] = useState<PlantVitals>(DEFAULT_VITALS);
   
   // UI state
@@ -115,15 +120,17 @@ export function usePlantState(): UsePlantStateReturn {
 
   // Initialize MQ-2 baseline and compute initial state
   useEffect(() => {
-    setMq2Baseline(200); // Default baseline
+    setMq2Baseline(70); // Baseline is 70 per guidelines (normal reading ~70)
     // Compute initial state from default vitals
     const initialScores = computeScores(DEFAULT_RAW_VITALS);
     const initialMood = deriveMood(initialScores);
     const initialEmotion = deriveEmotionState(initialScores, DEFAULT_RAW_VITALS);
+    const initialState = computePlantCurrentState(DEFAULT_RAW_VITALS);
     
     setScores(initialScores);
     setMood(initialMood);
     setEmotion(initialEmotion);
+    setCurrentState(initialState);
     prevEmotionRef.current = initialEmotion;
     prevScoresRef.current = initialScores;
     
@@ -141,10 +148,12 @@ export function usePlantState(): UsePlantStateReturn {
     const newScores = computeScores(raw);
     const newMood = deriveMood(newScores);
     const newEmotion = deriveEmotionState(newScores, raw);
+    const newCurrentState = computePlantCurrentState(raw);
 
     setScores(newScores);
     setMood(newMood);
     setEmotion(newEmotion);
+    setCurrentState(newCurrentState);
 
     // Update vitals for display (convert scores to 0-100 scale)
     // Health is average of hydration, comfort, and air quality
@@ -318,9 +327,11 @@ export function usePlantState(): UsePlantStateReturn {
 
   return {
     vitals,
+    rawVitals, // Expose raw sensor values
     scores,
     mood,
     emotion,
+    currentState,
     eventLog,
     pendingReminder,
     simulationMode,

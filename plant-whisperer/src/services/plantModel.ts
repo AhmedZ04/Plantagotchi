@@ -1,12 +1,27 @@
 /**
- * Plant model with Birkin-specific scoring logic
- * Pure functions for computing scores and deriving mood/emotion from sensor data
+ * Plant model with sensor guidelines-based logic
+ * Implements exact thresholds and states from sensor behavior documentation
  */
 
-import { PlantMood, EmotionState, PlantVitalsRaw, PlantScores } from '../types/plant';
+import {
+  PlantMood,
+  EmotionState,
+  PlantVitalsRaw,
+  PlantScores,
+  TemperatureState,
+  HumidityState,
+  SoilMoistureState,
+  BioSignalState,
+  AirQualityState,
+  PlantCurrentState,
+} from '../types/plant';
 
-// MQ-2 baseline (can be calibrated)
-let mq2Baseline = 200;
+// MQ-2 baseline (normal reading is ~70)
+let mq2Baseline = 70;
+
+// BioAmp EXG moving baseline (stores last 10-20 readings)
+const bioReadings: number[] = [];
+const BIO_BASELINE_WINDOW = 15; // Average of last 15 readings
 
 /**
  * Set MQ-2 baseline for air quality calculations
@@ -23,173 +38,166 @@ export function getMq2Baseline(): number {
 }
 
 /**
- * Compute hydration score for Philodendron Birkin
- * Soil sensor: higher = drier
- * 
- * DEADZONE (Optimal Range): 480-620
- *   - Accounts for sensor inaccuracies and human watering variations
- *   - Any value in this range = perfect score (100)
- *   - This is a RANGE, not a single point value
- * 
- * Ideal band: 450-700 (acceptable range)
- * Acceptable: 350-850 (tolerable range)
+ * Compute temperature state
+ * Guidelines:
+ * - Optimal for "our plant": 13-27°C → "stable_animation" (perfect state)
+ * - Cold: < 13°C → "cold_animation"
+ * - Hot: > 27°C → "hot_animation"
+ * - Stable: 13-27°C → "stable_animation" (optimal range)
  */
-export function computeHydrationScore(soil: number, rain: number): number {
-  const SOGGY = 350;
-  const DRY = 850;
-  const IDEAL_WET = 450;
-  const IDEAL_DRY = 700;
-  
-  // DEADZONE: Wide range for optimal conditions (accounts for sensor/human error)
-  // This range is intentionally wide to account for:
-  // - Sensor calibration variations
-  // - Human watering timing differences
-  // - Soil composition variations
-  // - Environmental factors
-  const DEADZONE_MIN = 480;  // Wider than before (was 500)
-  const DEADZONE_MAX = 620;  // Wider than before (was 600)
-
-  const clamped = Math.max(SOGGY, Math.min(DRY, soil));
-
-  let score: number;
-
-  // Check if within deadzone (optimal range) - score = 100
-  if (clamped >= DEADZONE_MIN && clamped <= DEADZONE_MAX) {
-    score = 100; // Deadzone range = perfect (accounts for variations)
-  } else if (clamped < IDEAL_WET) {
-    // Too wet (below ideal range) -> score 20-100 as it approaches IDEAL_WET
-    const r = (clamped - SOGGY) / (IDEAL_WET - SOGGY);
-    score = 20 + r * 80;
-  } else if (clamped < DEADZONE_MIN) {
-    // Between IDEAL_WET and DEADZONE_MIN (in ideal range, approaching deadzone)
-    // Score increases from 60 to 100 as we approach deadzone
-    const r = (clamped - IDEAL_WET) / (DEADZONE_MIN - IDEAL_WET);
-    score = 60 + r * 40; // 60 -> 100
-  } else if (clamped <= IDEAL_DRY) {
-    // Between DEADZONE_MAX and IDEAL_DRY (in ideal range, leaving deadzone)
-    // Score decreases from 100 to 60 as we move away from deadzone
-    const r = (clamped - DEADZONE_MAX) / (IDEAL_DRY - DEADZONE_MAX);
-    score = 100 - r * 40; // 100 -> 60
+export function computeTemperatureState(temp: number): TemperatureState {
+  if (temp < 13) {
+    return 'cold_animation';
+  } else if (temp > 27) {
+    return 'hot_animation';
   } else {
-    // Too dry (above ideal range) -> score 0-60
-    const r = (clamped - IDEAL_DRY) / (DRY - IDEAL_DRY);
-    score = 60 - r * 60;
+    return 'stable_animation';
   }
-
-  // If raindrop indicates freshly wet, slightly cushion low score
-  if (rain < 400 && score < 60) {
-    score = Math.min(60, score + 15);
-  }
-
-  return Math.max(0, Math.min(100, Math.round(score)));
 }
 
 /**
- * Compute temperature score for Birkin
- * 
- * DEADZONE (Optimal Range): 21-25°C
- *   - Accounts for sensor inaccuracies and room temperature variations
- *   - Any value in this range = perfect score (100)
- *   - This is a RANGE, not a single point value
- * 
- * Ideal: 20-26°C (comfortable range)
- * Acceptable: 18-29°C (tolerable range)
+ * Compute temperature score (0-100) based on optimal range 13-27°C
+ * Used for health bar display
  */
-function computeTempScore(temp: number): number {
-  const ACCEPTABLE_MIN = 18;
-  const ACCEPTABLE_MAX = 29;
-  const IDEAL_MIN = 20;
-  const IDEAL_MAX = 26;
-  
-  // DEADZONE: Wide range for optimal temperature (accounts for sensor/environmental variations)
-  // This range is intentionally wide to account for:
-  // - Temperature sensor accuracy (±1-2°C typical)
-  // - Room temperature fluctuations
-  // - Sensor placement variations
-  // - Time of day variations
-  const DEADZONE_MIN = 21;  // Slightly wider (was 22)
-  const DEADZONE_MAX = 25;  // Same as before
+export function computeTempScore(temp: number): number {
+  const OPTIMAL_MIN = 13;
+  const OPTIMAL_MAX = 27;
+  const ACCEPTABLE_MIN = 10;
+  const ACCEPTABLE_MAX = 30;
 
-  // Check if within deadzone (optimal range) - score = 100
-  if (temp >= DEADZONE_MIN && temp <= DEADZONE_MAX) {
-    return 100; // Deadzone range = perfect (accounts for variations)
+  // Within optimal range (13-27°C) = 100
+  if (temp >= OPTIMAL_MIN && temp <= OPTIMAL_MAX) {
+    return 100;
   }
 
-  // Outside acceptable range - score 0-40
+  // Outside acceptable range = 0-40
   if (temp < ACCEPTABLE_MIN || temp > ACCEPTABLE_MAX) {
     if (temp < ACCEPTABLE_MIN) {
-      const r = (temp - 10) / (ACCEPTABLE_MIN - 10);
-      return Math.max(0, Math.round(r * 40));
+      const r = Math.max(0, (temp - 0) / (ACCEPTABLE_MIN - 0));
+      return Math.round(r * 40);
     } else {
-      const r = (35 - temp) / (35 - ACCEPTABLE_MAX);
-      return Math.max(0, Math.round(r * 40));
+      const r = Math.max(0, (35 - temp) / (35 - ACCEPTABLE_MAX));
+      return Math.round(r * 40);
     }
   }
 
-  // Within acceptable but outside deadzone - score 40-100
-  if (temp < DEADZONE_MIN) {
-    // Between ACCEPTABLE_MIN and DEADZONE_MIN
-    const r = (temp - ACCEPTABLE_MIN) / (DEADZONE_MIN - ACCEPTABLE_MIN);
-    return Math.round(40 + r * 60); // 40 -> 100
+  // Within acceptable but outside optimal = 40-100
+  if (temp < OPTIMAL_MIN) {
+    const r = (temp - ACCEPTABLE_MIN) / (OPTIMAL_MIN - ACCEPTABLE_MIN);
+    return Math.round(40 + r * 60);
   } else {
-    // Between DEADZONE_MAX and ACCEPTABLE_MAX
-    const r = (ACCEPTABLE_MAX - temp) / (ACCEPTABLE_MAX - DEADZONE_MAX);
-    return Math.round(40 + r * 60); // 40 -> 100
+    const r = (ACCEPTABLE_MAX - temp) / (ACCEPTABLE_MAX - OPTIMAL_MAX);
+    return Math.round(40 + r * 60);
   }
 }
 
 /**
- * Compute humidity score for Birkin
- * 
- * DEADZONE (Optimal Range): 55-68%
- *   - Accounts for sensor inaccuracies and environmental humidity variations
- *   - Any value in this range = perfect score (100)
- *   - This is a RANGE, not a single point value
- * 
- * Ideal: 50-70% (comfortable range)
- * Acceptable: 40-80% (tolerable range)
+ * Compute humidity state
+ * Guidelines:
+ * - High humidity: > 80% → "humid"
+ * - Low humidity: < 35% → "dry_air"
+ * - Normal humidity: 35-80% → "normal_air"
  */
-function computeHumScore(hum: number): number {
-  const ACCEPTABLE_MIN = 40;
-  const ACCEPTABLE_MAX = 80;
-  const IDEAL_MIN = 50;
-  const IDEAL_MAX = 70;
-  
-  // DEADZONE: Wide range for optimal humidity (accounts for sensor/environmental variations)
-  // This range is intentionally wide to account for:
-  // - Humidity sensor accuracy (±3-5% typical)
-  // - Room humidity fluctuations
-  // - Seasonal variations
-  // - Ventilation effects
-  const DEADZONE_MIN = 55;  // Same as before
-  const DEADZONE_MAX = 68;  // Wider than before (was 65)
+export function computeHumidityState(hum: number): HumidityState {
+  if (hum > 80) {
+    return 'humid';
+  } else if (hum < 35) {
+    return 'dry_air';
+  } else {
+    return 'normal_air';
+  }
+}
 
-  // Check if within deadzone (optimal range) - score = 100
-  if (hum >= DEADZONE_MIN && hum <= DEADZONE_MAX) {
-    return 100; // Deadzone range = perfect (accounts for variations)
+/**
+ * Compute humidity score (0-100) based on typical range 40-70%
+ * Used for health bar display
+ */
+export function computeHumScore(hum: number): number {
+  const OPTIMAL_MIN = 40;
+  const OPTIMAL_MAX = 70;
+  const ACCEPTABLE_MIN = 35;
+  const ACCEPTABLE_MAX = 80;
+
+  // Within optimal range (40-70%) = 100
+  if (hum >= OPTIMAL_MIN && hum <= OPTIMAL_MAX) {
+    return 100;
   }
 
-  // Outside acceptable range - score 0-40
+  // Outside acceptable range = 0-40
   if (hum < ACCEPTABLE_MIN || hum > ACCEPTABLE_MAX) {
     if (hum < ACCEPTABLE_MIN) {
-      const r = (hum - 20) / (ACCEPTABLE_MIN - 20);
-      return Math.max(0, Math.round(r * 40));
+      const r = Math.max(0, (hum - 0) / (ACCEPTABLE_MIN - 0));
+      return Math.round(r * 40);
     } else {
-      const r = (90 - hum) / (90 - ACCEPTABLE_MAX);
-      return Math.max(0, Math.round(r * 40));
+      const r = Math.max(0, (100 - hum) / (100 - ACCEPTABLE_MAX));
+      return Math.round(r * 40);
     }
   }
 
-  // Within acceptable but outside deadzone - score 40-100
-  if (hum < DEADZONE_MIN) {
-    // Between ACCEPTABLE_MIN and DEADZONE_MIN
-    const r = (hum - ACCEPTABLE_MIN) / (DEADZONE_MIN - ACCEPTABLE_MIN);
-    return Math.round(40 + r * 60); // 40 -> 100
+  // Within acceptable but outside optimal = 40-100
+  if (hum < OPTIMAL_MIN) {
+    const r = (hum - ACCEPTABLE_MIN) / (OPTIMAL_MIN - ACCEPTABLE_MIN);
+    return Math.round(40 + r * 60);
   } else {
-    // Between DEADZONE_MAX and ACCEPTABLE_MAX
-    const r = (ACCEPTABLE_MAX - hum) / (ACCEPTABLE_MAX - DEADZONE_MAX);
-    return Math.round(40 + r * 60); // 40 -> 100
+    const r = (ACCEPTABLE_MAX - hum) / (ACCEPTABLE_MAX - OPTIMAL_MAX);
+    return Math.round(40 + r * 60);
   }
+}
+
+/**
+ * Compute soil moisture state
+ * Guidelines:
+ * - Level 0: ≥ 900 → "dry" (Super dry)
+ * - Level 1: 700-899 → "thirsty" (Slightly dry)
+ * - Level 2: 400-699 → "okay" (Moist)
+ * - Level 3: ≤ 399 → "hydrated" (Wet)
+ */
+export function computeSoilMoistureState(soil: number): SoilMoistureState {
+  if (soil >= 900) {
+    return 'dry';
+  } else if (soil >= 700) {
+    return 'thirsty';
+  } else if (soil >= 400) {
+    return 'okay';
+  } else {
+    return 'hydrated';
+  }
+}
+
+/**
+ * Compute hydration score (0-100) based on soil moisture levels
+ * Used for health bar display
+ * Optimal range: 400-699 (okay/moist)
+ */
+export function computeHydrationScore(soil: number, rain: number): number {
+  // Check if watering animation should trigger (raindrop < 300)
+  // This is handled separately in state derivation
+
+  // Level 2 (400-699) = optimal = 100
+  if (soil >= 400 && soil <= 699) {
+    return 100;
+  }
+
+  // Level 3 (≤ 399) = hydrated/wet = 80-100 (still good, just wet)
+  if (soil < 400) {
+    if (soil <= 150) {
+      // Fully wet - might be too wet
+      return 70;
+    }
+    // Wet but not too wet
+    const r = (soil - 150) / (400 - 150);
+    return Math.round(70 + r * 30); // 70 -> 100
+  }
+
+  // Level 1 (700-899) = thirsty = 40-80
+  if (soil >= 700 && soil < 900) {
+    const r = (soil - 700) / (900 - 700);
+    return Math.round(80 - r * 40); // 80 -> 40
+  }
+
+  // Level 0 (≥ 900) = dry = 0-40
+  const r = Math.min(1, (soil - 900) / (1020 - 900));
+  return Math.round(40 - r * 40); // 40 -> 0
 }
 
 /**
@@ -202,106 +210,268 @@ export function computeComfortScore(temp: number, hum: number): number {
 }
 
 /**
- * Compute air quality score based on MQ-2 sensor
- * Uses ratio to baseline
+ * Compute overall plant health for Philodendron Birkin
+ * Uses weighted average of critical sensors (soil, temp, hum, mq2)
+ * Weightages based on plant health priority:
+ * - Soil moisture: 40% (most critical for plant survival)
+ * - Temperature: 30% (important for growth)
+ * - Humidity: 20% (affects comfort)
+ * - MQ2 (Air Quality): 10% (least critical, but still matters)
  * 
- * DEADZONE (Optimal Range): ratio <= 1.15
- *   - Accounts for sensor noise and baseline calibration variations
- *   - Any ratio in this range = perfect score (100)
- *   - This is a RANGE, not a single point value
- * 
- * The ratio represents current reading / baseline reading
- * - Lower ratio = better air quality
- * - Higher ratio = worse air quality (more pollutants)
+ * Does NOT include bio signal or air quality index (those are for animations only)
  */
-export function computeAirQualityScore(mq2: number): number {
-  if (mq2Baseline <= 0) {
-    return 50; // Default if baseline not set
-  }
+export function computeOverallHealth(soil: number, temp: number, hum: number, mq2: number): number {
+  const soilScore = computeHydrationScore(soil, 1020); // Use default rain value for soil-only calculation
+  const tempScore = computeTempScore(temp);
+  const humScore = computeHumScore(hum);
+  const mq2Score = computeAirQualityScore(mq2);
 
-  const ratio = mq2 / mq2Baseline;
+  // Weighted average
+  const overallHealth = (
+    soilScore * 0.40 +  // 40% weight - most important
+    tempScore * 0.30 +  // 30% weight
+    humScore * 0.20 +   // 20% weight
+    mq2Score * 0.10     // 10% weight - least important
+  );
 
-  // DEADZONE: Wide range for optimal air quality (accounts for sensor noise/calibration)
-  // This range is intentionally wide to account for:
-  // - MQ-2 sensor noise and drift
-  // - Baseline calibration variations
-  // - Normal environmental fluctuations
-  // - Sensor warm-up time
-  const DEADZONE_MAX_RATIO = 1.15;  // Wider than before (was 1.1)
-
-  // Check if within deadzone (optimal range) - score = 100
-  if (ratio <= DEADZONE_MAX_RATIO) {
-    return 100; // Deadzone range = perfect (accounts for sensor variations)
-  } else if (ratio <= 1.5) {
-    // Just outside deadzone - score 70-100
-    const r = (ratio - DEADZONE_MAX_RATIO) / (1.5 - DEADZONE_MAX_RATIO);
-    return Math.round(100 - r * 30); // 100 -> 70
-  } else if (ratio <= 2.0) {
-    // Moderate air quality issues - score 40-70
-    const r = (ratio - 1.5) / (2.0 - 1.5);
-    return Math.round(70 - r * 30); // 70 -> 40
-  } else {
-    // Poor air quality - score 20-40
-    const r = Math.min(1, (ratio - 2.0) / 2.0);
-    return Math.round(40 - r * 20); // 40 -> 20
-  }
+  return Math.max(0, Math.min(100, Math.round(overallHealth)));
 }
 
 /**
- * Compute bio signal score
- * 
- * DEADZONE (Optimal Range): 4-22
- *   - Accounts for sensor signal variations and electrode contact differences
- *   - Any value in this range = perfect score (100)
- *   - This is a RANGE, not a single point value
- * 
- * Bio signal represents the variance/quality of the BioAmp EXG signal
- * - Very low (<2) = flat signal / disconnected electrodes
- * - Optimal (4-22) = good signal variance (healthy connection)
- * - Very high (>60) = noisy signal / interference
+ * Check if sensor value is in optimal range
+ * Returns true if optimal, false if not
+ */
+export function isSoilOptimal(soil: number): boolean {
+  // Optimal range: 400-699 (okay/moist state)
+  return soil >= 400 && soil <= 699;
+}
+
+export function isTempOptimal(temp: number): boolean {
+  // Optimal range: 13-27°C
+  return temp >= 13 && temp <= 27;
+}
+
+export function isHumOptimal(hum: number): boolean {
+  // Optimal range: 40-70%
+  return hum >= 40 && hum <= 70;
+}
+
+export function isMq2Optimal(mq2: number): boolean {
+  // Optimal: < 150 (air_good)
+  return mq2 < 150;
+}
+
+/**
+ * Update BioAmp EXG moving baseline
+ * Guidelines:
+ * - Resting range: 400-600
+ * - Moving baseline: average of last 10-20 readings
+ */
+function updateBioBaseline(bio: number): number {
+  bioReadings.push(bio);
+  if (bioReadings.length > BIO_BASELINE_WINDOW) {
+    bioReadings.shift(); // Remove oldest reading
+  }
+
+  // Calculate moving average
+  const sum = bioReadings.reduce((a, b) => a + b, 0);
+  return sum / bioReadings.length;
+}
+
+/**
+ * Compute bio signal state
+ * Guidelines:
+ * - Resting range: 400-600
+ * - Wind simulation: spikes > 900 or drops < 50
+ * - Moving baseline: average of last 10-20 readings
+ * - Wind trigger: deviation ±60% from baseline → "wind_trigger"
+ * - Rest: signal stabilizes → "rest"
+ */
+export function computeBioSignalState(bio: number): BioSignalState {
+  // Update moving baseline
+  const baseline = updateBioBaseline(bio);
+
+  // Check for extreme spikes/drops (wind simulation)
+  if (bio > 900 || bio < 50) {
+    return 'wind_trigger';
+  }
+
+  // Check deviation from baseline (±60%)
+  const deviation = Math.abs(bio - baseline);
+  const threshold = baseline * 0.6; // 60% of baseline
+
+  if (deviation > threshold) {
+    return 'wind_trigger';
+  }
+
+  return 'rest';
+}
+
+/**
+ * Compute bio signal score (0-100) based on resting range 400-600
+ * Used for health bar display
  */
 export function computeBioSignalScore(bio: number): number {
-  // DEADZONE: Wide range for optimal bio signal (accounts for signal variations)
-  // This range is intentionally wide to account for:
-  // - Electrode contact variations
-  // - Signal noise and interference
-  // - Plant movement
-  // - Sensor calibration differences
-  const DEADZONE_MIN = 4;   // Wider than before (was 5)
-  const DEADZONE_MAX = 22;  // Wider than before (was 20)
-  
-  const ACCEPTABLE_LOW = 2;
-  const ACCEPTABLE_HIGH = 60;
+  const RESTING_MIN = 400;
+  const RESTING_MAX = 600;
+  const ACCEPTABLE_MIN = 50;
+  const ACCEPTABLE_MAX = 900;
 
-  // Check if within deadzone (optimal range) - score = 100
-  if (bio >= DEADZONE_MIN && bio <= DEADZONE_MAX) {
-    return 100; // Deadzone range = perfect (accounts for signal variations)
+  // Within resting range (400-600) = 100
+  if (bio >= RESTING_MIN && bio <= RESTING_MAX) {
+    return 100;
   }
-  
-  // Very low = disconnected/flat - score 0-20
-  if (bio < ACCEPTABLE_LOW) {
-    const r = Math.max(0, bio / ACCEPTABLE_LOW);
-    return Math.round(r * 20); // 0 -> 20
+
+  // Extreme spikes/drops (< 50 or > 900) = 0-20
+  if (bio < ACCEPTABLE_MIN || bio > ACCEPTABLE_MAX) {
+    if (bio < ACCEPTABLE_MIN) {
+      const r = Math.max(0, bio / ACCEPTABLE_MIN);
+      return Math.round(r * 20);
+    } else {
+      const r = Math.max(0, (1023 - bio) / (1023 - ACCEPTABLE_MAX));
+      return Math.round(r * 20);
+    }
   }
-  
-  // Between ACCEPTABLE_LOW and DEADZONE_MIN - score 20-100
-  if (bio >= ACCEPTABLE_LOW && bio < DEADZONE_MIN) {
-    const r = (bio - ACCEPTABLE_LOW) / (DEADZONE_MIN - ACCEPTABLE_LOW);
-    return Math.round(20 + r * 80); // 20 -> 100
+
+  // Outside resting but within acceptable = 20-100
+  if (bio < RESTING_MIN) {
+    const r = (bio - ACCEPTABLE_MIN) / (RESTING_MIN - ACCEPTABLE_MIN);
+    return Math.round(20 + r * 80);
+  } else {
+    const r = (ACCEPTABLE_MAX - bio) / (ACCEPTABLE_MAX - RESTING_MAX);
+    return Math.round(20 + r * 80);
   }
-  
-  // Between DEADZONE_MAX and ACCEPTABLE_HIGH - score 40-100
-  if (bio > DEADZONE_MAX && bio <= ACCEPTABLE_HIGH) {
-    const r = (bio - DEADZONE_MAX) / (ACCEPTABLE_HIGH - DEADZONE_MAX);
-    return Math.round(100 - r * 60); // 100 -> 40
-  }
-  
-  // Too high = very noisy - score 0-40
-  return Math.max(0, Math.round(40 - (bio - ACCEPTABLE_HIGH) / 2));
 }
 
 /**
- * Derive mood from scores
+ * Compute air quality state
+ * Guidelines:
+ * - Normal range: ~70
+ * - Air good: < 150 → "air_good"
+ * - Air bad: ≥ 150 → "air_bad"
+ * - Hazard: > 200 → "dizzy" or "polluted"
+ */
+export function computeAirQualityState(mq2: number): AirQualityState {
+  if (mq2 > 200) {
+    return 'polluted'; // Or 'dizzy' - using 'polluted' as per guidelines
+  } else if (mq2 >= 150) {
+    return 'air_bad';
+  } else {
+    return 'air_good';
+  }
+}
+
+/**
+ * Compute air quality score (0-100) based on MQ-2 sensor
+ * Guidelines:
+ * - Normal: ~70
+ * - Baseline: 70
+ * - < 150 = good
+ * - ≥ 150 = bad
+ * - > 200 = hazard
+ */
+export function computeAirQualityScore(mq2: number): number {
+  // Normal/baseline is 70
+  const NORMAL = 70;
+  const GOOD_THRESHOLD = 150;
+  const BAD_THRESHOLD = 200;
+
+  if (mq2 < GOOD_THRESHOLD) {
+    // Good air quality (< 150)
+    // Closer to normal (70) = better score
+    if (mq2 <= NORMAL) {
+      return 100; // At or below normal = perfect
+    } else {
+      // Between normal and good threshold
+      const r = (mq2 - NORMAL) / (GOOD_THRESHOLD - NORMAL);
+      return Math.round(100 - r * 30); // 100 -> 70
+    }
+  } else if (mq2 < BAD_THRESHOLD) {
+    // Bad air quality (150-200)
+    const r = (mq2 - GOOD_THRESHOLD) / (BAD_THRESHOLD - GOOD_THRESHOLD);
+    return Math.round(70 - r * 40); // 70 -> 30
+  } else {
+    // Hazard (> 200)
+    const r = Math.min(1, (mq2 - BAD_THRESHOLD) / (500 - BAD_THRESHOLD));
+    return Math.round(30 - r * 30); // 30 -> 0
+  }
+}
+
+/**
+ * Compute current plant state from raw vitals
+ * Returns all sensor states based on guidelines
+ */
+export function computePlantCurrentState(vitals: PlantVitalsRaw): PlantCurrentState {
+  const temperature = computeTemperatureState(vitals.temperature);
+  const humidity = computeHumidityState(vitals.humidity);
+  const soilMoisture = computeSoilMoistureState(vitals.soilMoisture);
+  const bioSignal = computeBioSignalState(vitals.bio);
+  const airQuality = computeAirQualityState(vitals.mq2);
+  const isWatering = vitals.raindrop < 300; // Watering animation trigger
+
+  // Generate state text for UI display
+  // Format: "Temp: [state] | Humidity: [state] | Soil: [state] | Bio: [state] | Air: [state] | [Watering]"
+  // These serve as placeholders for animations until animations are implemented
+  const stateParts: string[] = [];
+  
+  // Temperature state (13-27°C is optimal/stable)
+  if (temperature === 'cold_animation') {
+    stateParts.push('Temp: Cold [cold_animation]');
+  } else if (temperature === 'hot_animation') {
+    stateParts.push('Temp: Hot [hot_animation]');
+  } else {
+    stateParts.push('Temp: Perfect [stable_animation]'); // 13-27°C optimal range
+  }
+
+  // Humidity state (placeholder for animations)
+  if (humidity === 'humid') {
+    stateParts.push('Humidity: Humid [hot_animation]');
+  } else if (humidity === 'dry_air') {
+    stateParts.push('Humidity: Dry [dry_air_animation]');
+  } else {
+    stateParts.push('Humidity: Normal [normal_air_animation]');
+  }
+
+  // Soil moisture state (placeholder for animations)
+  const soilStateText = soilMoisture.charAt(0).toUpperCase() + soilMoisture.slice(1);
+  stateParts.push(`Soil: ${soilStateText} [${soilMoisture}_animation]`);
+
+  // Bio signal state (placeholder for animations)
+  if (bioSignal === 'wind_trigger') {
+    stateParts.push('Bio: Wind [wind_trigger_animation]');
+  } else {
+    stateParts.push('Bio: Rest [rest_animation]');
+  }
+
+  // Air quality state (placeholder for animations)
+  if (airQuality === 'polluted') {
+    stateParts.push('Air: Polluted [dizzy/polluted_animation]');
+  } else if (airQuality === 'air_bad') {
+    stateParts.push('Air: Bad [air_bad_animation]');
+  } else {
+    stateParts.push('Air: Good [air_good_animation]');
+  }
+
+  // Watering status (placeholder for animation)
+  if (isWatering) {
+    stateParts.push('💧 Watering [watering_animation]');
+  }
+
+  const stateText = stateParts.join(' | ');
+
+  return {
+    temperature,
+    humidity,
+    soilMoisture,
+    bioSignal,
+    airQuality,
+    isWatering,
+    stateText,
+  };
+}
+
+/**
+ * Derive mood from scores (legacy function, kept for compatibility)
  */
 export function deriveMood(scores: PlantScores): PlantMood {
   const { hydrationScore, comfortScore, airQualityScore, bioSignalScore } = scores;
@@ -319,47 +489,54 @@ export function deriveMood(scores: PlantScores): PlantMood {
 }
 
 /**
- * Derive emotion state from scores and raw vitals
+ * Derive emotion state from current state (legacy function, kept for compatibility)
+ * Maps new state system to legacy emotion states
  */
 export function deriveEmotionState(scores: PlantScores, vitals: PlantVitalsRaw): EmotionState {
-  const { hydrationScore, comfortScore, airQualityScore, bioSignalScore } = scores;
-  const { temp, hum, soil, rain } = {
-    temp: vitals.temperature,
-    hum: vitals.humidity,
-    soil: vitals.soilMoisture,
-    rain: vitals.raindrop,
-  };
+  const currentState = computePlantCurrentState(vitals);
 
-  // Watering detection: raindrop very wet & hydration low -> being watered
-  if (rain < 400 && hydrationScore < 60) return 'I_AM_BEING_WATERED';
+  // Watering detection
+  if (currentState.isWatering) {
+    return 'I_AM_BEING_WATERED';
+  }
 
-  // Nearly dead: extreme dryness
-  if (hydrationScore <= 10) return 'I_AM_NEARLY_DEAD';
+  // Soil moisture states
+  if (currentState.soilMoisture === 'dry') {
+    return 'I_AM_NEARLY_DEAD';
+  } else if (currentState.soilMoisture === 'thirsty') {
+    return 'I_NEED_WATER';
+  }
 
-  // Thirsty
-  if (hydrationScore > 10 && hydrationScore < 30) return 'I_NEED_WATER';
+  // Temperature states (aligned with 13-27°C optimal range)
+  if (currentState.temperature === 'hot_animation') {
+    return 'I_FEEL_HOT'; // > 27°C
+  } else if (currentState.temperature === 'cold_animation') {
+    return 'I_FEEL_COLD'; // < 13°C
+  }
+  // stable_animation (13-27°C) is the optimal/perfect state
 
-  // Too hot
-  if (temp >= 30) return 'I_FEEL_HOT';
+  // Humidity states
+  if (currentState.humidity === 'humid') {
+    return 'I_AM_SWEATING_THIS_IS_TOO_HUMID';
+  }
 
-  // Too cold
-  if (temp <= 15) return 'I_FEEL_COLD';
+  // Air quality states
+  if (currentState.airQuality === 'polluted' || currentState.airQuality === 'air_bad') {
+    return 'AIR_FEELS_BAD';
+  }
 
-  // Too humid
-  if (hum >= 80) return 'I_AM_SWEATING_THIS_IS_TOO_HUMID';
-
-  // Bad air quality
-  if (airQualityScore < 40) return 'AIR_FEELS_BAD';
-
-  // Bad bio link
-  if (bioSignalScore < 20) return 'CHECK_MY_CONNECTION';
+  // Bio signal states
+  if (currentState.bioSignal === 'wind_trigger') {
+    // Could map to connection check, but wind is more of a natural event
+    // Keep as okay for now
+  }
 
   // Default gradients
   if (
-    hydrationScore >= 80 &&
-    comfortScore >= 80 &&
-    airQualityScore >= 70 &&
-    bioSignalScore >= 40
+    scores.hydrationScore >= 80 &&
+    scores.comfortScore >= 80 &&
+    scores.airQualityScore >= 70 &&
+    scores.bioSignalScore >= 40
   ) {
     return 'I_FEEL_GREAT';
   }
@@ -396,4 +573,3 @@ export function getEmotionMessage(emotion: EmotionState): string {
       return 'Status update.';
   }
 }
-

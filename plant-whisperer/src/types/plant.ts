@@ -7,6 +7,14 @@ export type PlantStatus = 'connected' | 'disconnected' | 'connecting' | 'error';
 
 export type PlantMood = 'happy' | 'sad' | 'neutral' | 'thirsty' | 'needs-sun' | 'critical' | 'stressed' | 'thriving' | 'ok';
 
+// New state system based on sensor guidelines
+export type TemperatureState = 'cold_animation' | 'hot_animation' | 'stable_animation';
+export type HumidityState = 'humid' | 'dry_air' | 'normal_air';
+export type SoilMoistureState = 'dry' | 'thirsty' | 'okay' | 'hydrated';
+export type BioSignalState = 'wind_trigger' | 'rest';
+export type AirQualityState = 'air_good' | 'air_bad' | 'dizzy' | 'polluted';
+
+// Legacy emotion state (keeping for compatibility, but will be derived from new states)
 export type EmotionState =
   | 'I_FEEL_GREAT'
   | 'I_AM_OKAY'
@@ -41,12 +49,12 @@ export interface PlantState {
 
 // Raw sensor readings from WebSocket
 export interface SensorState {
-  soil: number;      // raw 0-1023
-  temp: number;      // °C
-  hum: number;       // % RH
-  mq2: number;       // raw 0-1023
-  rain: number;      // raw 0-1023
-  bio: number;       // arbitrary 0-100-ish float (signal metric)
+  soil: number;      // raw 0-1023 (A1 - Soil Moisture Sensor)
+  temp: number;      // °C (DHT11 - Temperature)
+  hum: number;       // % RH (DHT11 - Humidity)
+  mq2: number;       // raw 0-1023 (A3 - MQ2 Gas Sensor)
+  rain: number;      // raw 0-1023 (A0 - Raindrop Sensor)
+  bio: number;       // raw 0-1023 (A2 - BioAmp EXG Sensor)
 }
 
 // Raw vitals with timestamp
@@ -73,6 +81,17 @@ export interface PlantEvent {
   type: 'watered' | 'checked' | 'level-up' | 'warning' | 'error';
   message: string;
   timestamp: Date;
+}
+
+// Current plant state based on sensor guidelines
+export interface PlantCurrentState {
+  temperature: TemperatureState;
+  humidity: HumidityState;
+  soilMoisture: SoilMoistureState;
+  bioSignal: BioSignalState;
+  airQuality: AirQualityState;
+  isWatering: boolean; // true if raindrop < 300 (watering animation trigger)
+  stateText: string; // Combined state text for UI display
 }
 
 export interface Reminder {

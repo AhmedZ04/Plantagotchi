@@ -1,19 +1,22 @@
 import React from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import { usePlantState } from '@/src/hooks/usePlantState';
 import { HealthBars } from '@/src/components/HealthBars';
-import { spacing } from '@/src/theme';
+import { PixelCameraIcon } from '@/src/components/PixelCameraIcon';
+import { spacing, colors, typography } from '@/src/theme';
 
 /**
  * DashboardScreen - Shows background image with blurred section below black line
  * Health bars are displayed on top of the blurred area
  */
 export default function DashboardScreen() {
-  const { scores, emotion } = usePlantState();
+  const { scores, emotion, rawVitals } = usePlantState();
   const { height: windowHeight } = useWindowDimensions();
+  const router = useRouter();
 
   // Check if emotion is I_AM_OKAY
   const isOkayState = emotion === 'I_AM_OKAY';
@@ -29,6 +32,15 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.container}>
+        {/* Camera Icon Button - Top Right */}
+        <TouchableOpacity
+          style={styles.cameraButton}
+          onPress={() => router.push('/camera')}
+          activeOpacity={0.7}
+        >
+          <PixelCameraIcon size={32} color="#FFFFFF" />
+        </TouchableOpacity>
+
         {/* Background Image - Conditional based on emotion state */}
         {isOkayState ? (
           <>
@@ -94,7 +106,7 @@ export default function DashboardScreen() {
           {/* Health Bars on top of blurred area */}
           {scores && (
             <View style={styles.healthBarsContainer}>
-              <HealthBars scores={scores} />
+              <HealthBars scores={scores} rawVitals={rawVitals} />
             </View>
           )}
         </View>
@@ -162,5 +174,24 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     justifyContent: 'flex-start',
+  },
+  cameraButton: {
+    position: 'absolute',
+    top: spacing.md,
+    right: spacing.md,
+    zIndex: 20, // Above all other elements
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 5, // Android shadow
   },
 });
