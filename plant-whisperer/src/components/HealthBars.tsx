@@ -7,6 +7,7 @@
 
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { Image } from 'expo-image';
 import { PlantScores, PlantVitalsRaw } from '../types/plant';
 import { colors, spacing, typography } from '../theme';
 import { PixelIcon } from './PixelIcon';
@@ -143,6 +144,12 @@ export function HealthBars({ scores, rawVitals }: HealthBarsProps) {
     isOptimal: boolean
   ) => {
     const iconSize = 48;
+    const isAir = sensorType === 'mq2';
+    const isHum = sensorType === 'hum';
+    const isSoil = sensorType === 'soil';
+    const isTemp = sensorType === 'temp';
+    const isImageSensor = isAir || isHum || isSoil || isTemp;
+    const moduleSize = isImageSensor ? Math.round(iconSize * 1.6) : iconSize; // Slightly larger for Image-based icons
     const iconColor = isOptimal ? '#4caf50' : '#f44336'; // Green if optimal, red if not
 
     return (
@@ -152,43 +159,73 @@ export function HealthBars({ scores, rawVitals }: HealthBarsProps) {
         activeOpacity={0.7}
       >
         {/* Diamond-shaped icon module */}
-        <View style={[styles.sensorIconModule, { width: iconSize, height: iconSize }]}>
-          {/* Outer dark border */}
-          <View
-            style={[
-              styles.sensorIconOuterBorder,
-              {
-                width: iconSize,
-                height: iconSize,
-                borderColor: iconColor,
-              },
-            ]}
-          />
-          {/* Inner frame */}
-          <View
-            style={[
-              styles.sensorIconInnerFrame,
-              {
-                width: iconSize - 8,
-                height: iconSize - 8,
-                borderColor: iconColor,
-              },
-            ]}
-          />
-          {/* Background */}
-          <View
-            style={[
-              styles.sensorIconBackground,
-              {
-                width: iconSize - 12,
-                height: iconSize - 12,
-                backgroundColor: isOptimal ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)',
-              },
-            ]}
-          />
+        <View style={[styles.sensorIconModule, { width: moduleSize, height: moduleSize }]}>
+          {!isImageSensor && (
+            <>
+              {/* Outer dark border */}
+              <View
+                style={[
+                  styles.sensorIconOuterBorder,
+                  {
+                    width: iconSize,
+                    height: iconSize,
+                    borderColor: iconColor,
+                  },
+                ]}
+              />
+              {/* Inner frame */}
+              <View
+                style={[
+                  styles.sensorIconInnerFrame,
+                  {
+                    width: iconSize - 8,
+                    height: iconSize - 8,
+                    borderColor: iconColor,
+                  },
+                ]}
+              />
+              {/* Background */}
+              <View
+                style={[
+                  styles.sensorIconBackground,
+                  {
+                    width: iconSize - 12,
+                    height: iconSize - 12,
+                    backgroundColor: isOptimal ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)',
+                  },
+                ]}
+              />
+            </>
+          )}
           {/* Icon */}
           <View style={styles.sensorIconContainerInner}>
-            <PixelIcon type={iconType} size={iconSize - 16} />
+            {isImageSensor ? (
+              <Image
+                source={
+                  isAir
+                    ? (isOptimal
+                        ? require('../../assets/images/Green_Air.png')
+                        : require('../../assets/images/Red_Air.png'))
+                    : isHum
+                      ? (isOptimal
+                          ? require('../../assets/images/Green_Humidity.png')
+                          : require('../../assets/images/Red_Humidity.png'))
+                      : isSoil
+                        ? (isOptimal
+                            ? require('../../assets/images/Green_Soil.png')
+                            : require('../../assets/images/Red_Soil.png'))
+                        : (isOptimal
+                            ? require('../../assets/images/Green_Temp.png')
+                            : require('../../assets/images/Red_Temp.png'))
+                }
+                // Fill the module for image-based sensors
+                style={{ width: moduleSize - 4, height: moduleSize - 4 }}
+                contentFit="contain"
+                transition={200}
+              />
+            ) : (
+              <PixelIcon type={iconType} size={iconSize - 16} />
+            )}
           </View>
         </View>
         {/* Label */}
