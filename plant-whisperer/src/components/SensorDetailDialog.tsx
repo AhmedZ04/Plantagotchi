@@ -3,9 +3,9 @@
  * Shows a popup dialog with vertical meter and sensor values when a sensor icon is long-pressed
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Dimensions } from 'react-native';
-import { Image } from 'expo-image';
+import React, { useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Dimensions, Animated } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { colors, spacing, typography } from '../theme';
 import { PixelIcon } from './PixelIcon';
 
@@ -19,6 +19,117 @@ interface SensorDetailDialogProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
+
+/**
+ * OptimalityBar Component
+ * Vertical thermometer-style bar with tick marks, styled like HealthBar but green
+ */
+interface OptimalityBarProps {
+  percentage: number; // 0-100
+}
+
+function OptimalityBar({ percentage }: OptimalityBarProps) {
+  // Clamp percentage
+  const clampedPercentage = Math.max(0, Math.min(100, percentage));
+  
+  // Bar dimensions - vertical thermometer style
+  const barWidth = 40;
+  const barHeight = 200;
+  const borderWidth = 3;
+  const cornerRadius = barWidth / 2;
+  
+  // Calculate fill height (fills from bottom to top)
+  const maxFillHeight = barHeight - borderWidth * 2;
+  const targetFillHeight = (clampedPercentage / 100) * maxFillHeight;
+  
+  // Animated fill
+  const animatedFillHeight = useRef(new Animated.Value(targetFillHeight)).current;
+  const isInitialMount = useRef(true);
+  
+  // Update animation
+  useEffect(() => {
+    const newTargetHeight = (clampedPercentage / 100) * maxFillHeight;
+    
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      animatedFillHeight.setValue(newTargetHeight);
+      return;
+    }
+    
+    Animated.timing(animatedFillHeight, {
+      toValue: newTargetHeight,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  }, [clampedPercentage, maxFillHeight, animatedFillHeight]);
+  
+  // Generate tick marks (thermometer readings)
+  // Create tick marks at 0%, 20%, 40%, 60%, 80%, 100%
+  const tickMarks = [0, 20, 40, 60, 80, 100];
+  
+  return (
+    <View style={styles.optimalityBarContainer}>
+      {/* White background with black border - matching HealthBar style */}
+      <View style={[
+        styles.optimalityBarOutline,
+        {
+          width: barWidth,
+          height: barHeight,
+          borderRadius: cornerRadius,
+          borderWidth: borderWidth,
+          borderColor: '#000000',
+          backgroundColor: '#ffffff',
+        }
+      ]} />
+      
+      {/* Tick marks - thermometer style dashes (inside the bar only) */}
+      {tickMarks.map((tick) => {
+        const tickPosition = ((100 - tick) / 100) * maxFillHeight + borderWidth;
+        // Only show tick marks that are within the bar bounds
+        if (tickPosition >= borderWidth && tickPosition <= barHeight - borderWidth) {
+          return (
+            <View
+              key={tick}
+              style={[
+                styles.optimalityBarTick,
+                {
+                  top: tickPosition - 1,
+                  left: borderWidth,
+                  width: barWidth - borderWidth * 2,
+                  height: 2,
+                }
+              ]}
+            />
+          );
+        }
+        return null;
+      })}
+      
+      {/* Green fill bar - animated, fills from bottom to top */}
+      <Animated.View
+        style={[
+          styles.optimalityBarFill,
+          {
+            left: borderWidth,
+            bottom: borderWidth,
+            width: barWidth - borderWidth * 2,
+            height: animatedFillHeight,
+            backgroundColor: '#4caf50', // Green color
+            borderBottomLeftRadius: cornerRadius - borderWidth,
+            borderBottomRightRadius: cornerRadius - borderWidth,
+            borderTopLeftRadius: cornerRadius - borderWidth,
+            borderTopRightRadius: cornerRadius - borderWidth,
+          }
+        ]}
+      />
+      
+      {/* Percentage text - positioned above the bar */}
+      <Text style={styles.optimalityBarPercentage}>
+        {Math.round(clampedPercentage)}%
+      </Text>
+    </View>
+  );
+}
 
 export function SensorDetailDialog({
   visible,
@@ -86,23 +197,120 @@ export function SensorDetailDialog({
 
   const sensorColor = getSensorColor(sensorScore);
 
+  // Animation values
+  const blurIntensity = useRef(new Animated.Value(0)).current;
+  const scale = useRef(new Animated.Value(0.8)).current;
+  const opacity = useRef(new Animated.Value(0)).current;
+  const [blurIntensityState, setBlurIntensityState] = React.useState(0);
+  const blurIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Animate on mount/unmount - synchronized blur and dialog animations
+  useEffect(() => {
+    if (visible) {
+      // Animate blur intensity from 0 to 120 (strong Gaussian blur like in image)
+      // Using state since BlurView doesn't support Animated.Value directly
+      blurIntervalRef.current = setInterval(() => {
+        setBlurIntensityState((prev) => {
+          if (prev >= 120) {
+            if (blurIntervalRef.current) {
+              clearInterval(blurIntervalRef.current);
+              blurIntervalRef.current = null;
+            }
+            return 120;
+          }
+          // Smooth animation over 300ms (24 updates per 12.5ms ≈ 300ms)
+          return Math.min(prev + 5, 120);
+        });
+      }, 12.5); // Update every 12.5ms for smooth 60fps animation
+
+      // Animate blur opacity and dialog simultaneously
+      Animated.parallel([
+        Animated.timing(blurIntensity, {
+          toValue: 100,
+          duration: 300,
+          useNativeDriver: false, // BlurView intensity can't use native driver
+        }),
+        Animated.spring(scale, {
+          toValue: 1,
+          tension: 50,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    } else {
+      // Reset on close
+      if (blurIntervalRef.current) {
+        clearInterval(blurIntervalRef.current);
+        blurIntervalRef.current = null;
+      }
+      setBlurIntensityState(0);
+      blurIntensity.setValue(0);
+      scale.setValue(0.8);
+      opacity.setValue(0);
+    }
+
+    return () => {
+      if (blurIntervalRef.current) {
+        clearInterval(blurIntervalRef.current);
+        blurIntervalRef.current = null;
+      }
+    };
+  }, [visible, blurIntensity, scale, opacity]);
+
   return (
     <Modal
       visible={visible}
       transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
     >
+      {/* Animated Gaussian Blur Background - actual blur effect */}
+      {/* BlurView must be first to blur content behind Modal */}
+      <BlurView
+        intensity={blurIntensityState}
+        tint="default"
+        style={StyleSheet.absoluteFill}
+      />
+      
       <TouchableOpacity
         style={styles.overlay}
         activeOpacity={1}
         onPress={onClose}
       >
+        {/* Subtle dark overlay for better contrast */}
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            {
+              backgroundColor: 'rgba(0, 0, 0, 0.15)',
+              opacity: opacity,
+            },
+          ]}
+        />
+
         <TouchableOpacity
-          style={styles.dialog}
+          style={styles.overlayTouchable}
           activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
+          onPress={onClose}
         >
+          <Animated.View
+            style={[
+              styles.dialog,
+              {
+                transform: [{ scale: scale }],
+                opacity: opacity,
+              },
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={1}
+              onPress={(e) => e.stopPropagation()}
+            >
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
@@ -136,57 +344,12 @@ export function SensorDetailDialog({
             </View>
           </View>
 
-          {/* Vertical Meter */}
+          {/* Optimality Bar - styled like HealthBar */}
           <View style={styles.meterContainer}>
-            <Text style={styles.meterLabel}>Optimality</Text>
-            <View style={styles.meterWrapper}>
-              {/* SVG Background - on top to act as visual mask */}
-              <Image
-                source={require('../../assets/images/sensor-bar.svg')}
-                style={styles.meterSvg}
-                contentFit="contain"
-                contentPosition="center"
-              />
-              
-              {/* Fill container - positioned precisely to match SVG bar area */}
-              <View
-                style={[
-                  styles.meterFillContainer,
-                  {
-                    // Fillable area is ~150px tall (200px total - 25px for heart - 25px top padding)
-                    // Calculate height based on sensorScore percentage
-                    height: (sensorScore / 100) * 150,
-                  },
-                ]}
-              >
-                {/* Colored fill overlay - fills from bottom */}
-                <View
-                  style={[
-                    styles.meterFillOverlay,
-                    {
-                      height: '100%',
-                      backgroundColor: sensorColor.fill,
-                      opacity: 0.85,
-                    },
-                  ]}
-                />
-                
-                {/* Light gradient overlay on top portion of fill */}
-                <View
-                  style={[
-                    styles.meterFillTopOverlay,
-                    {
-                      backgroundColor: sensorColor.fillLight,
-                      opacity: 0.6,
-                    },
-                  ]}
-                />
-              </View>
-              
-              {/* Percentage label */}
-              <Text style={styles.meterPercentage}>{sensorScore}%</Text>
-            </View>
+            <OptimalityBar percentage={sensorScore} />
           </View>
+            </TouchableOpacity>
+          </Animated.View>
         </TouchableOpacity>
       </TouchableOpacity>
     </Modal>
@@ -196,21 +359,27 @@ export function SensorDetailDialog({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: spacing.md,
   },
+  overlayTouchable: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   dialog: {
     backgroundColor: colors.surface,
-    borderRadius: 12,
-    width: Math.min(screenWidth - spacing.md * 2, 320),
-    padding: spacing.md,
+    borderRadius: 16,
+    width: Math.min(screenWidth - spacing.md * 2, 360),
+    maxHeight: '90%',
+    padding: spacing.lg,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 20,
   },
   header: {
     flexDirection: 'row',
@@ -257,26 +426,31 @@ const styles = StyleSheet.create({
   },
   valueContainer: {
     alignItems: 'center',
-    marginBottom: spacing.md,
-    paddingVertical: spacing.sm,
+    marginBottom: spacing.lg,
+    paddingVertical: spacing.md,
   },
   valueText: {
     ...typography.label,
-    fontSize: 36,
+    fontSize: 48,
     fontWeight: 'bold',
     color: colors.textPrimary,
-    marginBottom: 4,
+    marginBottom: spacing.md,
+    minHeight: 60,
+    textAlign: 'center',
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   valueDescription: {
     ...typography.label,
     fontSize: 12,
     color: colors.textSecondary,
-    marginBottom: spacing.xs,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
   },
   statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: spacing.xs,
+    marginTop: spacing.md,
   },
   statusDot: {
     width: 8,
@@ -292,70 +466,40 @@ const styles = StyleSheet.create({
   },
   meterContainer: {
     alignItems: 'center',
-    marginTop: spacing.sm,
+    marginTop: spacing.lg,
+    marginBottom: spacing.md,
   },
-  meterLabel: {
-    ...typography.label,
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: spacing.xs,
-  },
-  meterWrapper: {
+  optimalityBarContainer: {
     position: 'relative',
-    width: 60,
+    width: 40,
     height: 200,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
+    marginTop: spacing.xs,
+    marginBottom: spacing.xs,
   },
-  meterSvg: {
+  optimalityBarOutline: {
     position: 'absolute',
-    width: 60,
-    height: 200,
-    zIndex: 10, // SVG on top to act as visual mask
+    borderStyle: 'solid',
   },
-  meterFillContainer: {
+  optimalityBarFill: {
     position: 'absolute',
-    // SVG viewBox: 206 x 785, bar area: x=47, width=122.67, y=8.61, height=690.39
-    // When rendered at 60x200: scaleX = 60/206 = 0.291, scaleY = 200/785 = 0.255
-    // Bar left: 47 * 0.291 = 13.68px, Bar width: 122.67 * 0.291 = 35.7px
-    // Bar top: 8.61 * 0.255 = 2.2px, Bar height: 690.39 * 0.255 = 176px
-    // Heart is at bottom (y=584.33), so fillable area excludes bottom ~25px
-    left: 13.7, // Match SVG bar start position
-    bottom: 25, // Clear the heart at bottom
-    width: 35.7, // Match SVG bar width
-    // height will be set dynamically based on sensorScore
-    borderRadius: 8, // Rounded corners to match SVG bar shape
-    overflow: 'hidden', // Important for inner fills
-    zIndex: 8, // Below the SVG
   },
-  meterFillOverlay: {
+  optimalityBarTick: {
     position: 'absolute',
-    left: 0,
-    bottom: 0,
-    width: '100%',
-    // height will be set dynamically
-    borderBottomLeftRadius: 8,
-    borderBottomRightRadius: 8,
+    backgroundColor: '#000000',
+    opacity: 0.3,
+    zIndex: 5,
   },
-  meterFillTopOverlay: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    width: '100%',
-    height: 15, // Fixed height for lighter top gradient
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  meterPercentage: {
+  optimalityBarPercentage: {
     position: 'absolute',
     top: -30,
     ...typography.label,
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.textPrimary,
-    zIndex: 10, // Above all overlays
+    color: '#4caf50',
+    fontFamily: 'monospace',
+    zIndex: 10,
   },
 });
 

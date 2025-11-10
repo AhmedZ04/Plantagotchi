@@ -214,12 +214,12 @@ export function HealthBar({
   const containerHeight = containerWidth * 0.25; // Aspect ratio from reference
   
   // Heart dimensions
-  const heartSize = containerHeight * 1.4;
-  const heartLeft = -heartSize * 0.3;
+  const heartSize = containerHeight * 0.8;
+  const heartLeft = -heartSize * 0.15;
   
   // Bar dimensions
-  const barLeft = heartSize * 0.65;
-  const barWidth = containerWidth - barLeft - 20;
+  const barLeft = heartSize * 0.5;
+  const barWidth = containerWidth - barLeft - 10;
   const barHeight = containerHeight * 0.5;
   const borderWidth = Math.max(3, containerHeight * 0.08);
   const cornerRadius = barHeight / 2;

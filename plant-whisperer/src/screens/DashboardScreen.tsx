@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
@@ -8,18 +8,43 @@ import { usePlantState } from '@/src/hooks/usePlantState';
 import { HealthBars } from '@/src/components/HealthBars';
 import { PixelCameraIcon } from '@/src/components/PixelCameraIcon';
 import { spacing, colors, typography } from '@/src/theme';
+import {
+  isSoilOptimal,
+  isTempOptimal,
+  isHumOptimal,
+  isMq2Optimal,
+} from '@/src/services/plantModel';
 
 /**
  * DashboardScreen - Shows background image with blurred section below black line
  * Health bars are displayed on top of the blurred area
  */
 export default function DashboardScreen() {
-  const { scores, emotion, rawVitals } = usePlantState();
+  const { scores, rawVitals } = usePlantState();
   const { height: windowHeight } = useWindowDimensions();
   const router = useRouter();
 
-  // Check if emotion is I_AM_OKAY
-  const isOkayState = emotion === 'I_AM_OKAY';
+  // Sensor status helpers for animation selection
+  const { soilMoisture, temperature, humidity, mq2 } = rawVitals;
+
+  const allSensorsOptimal = useMemo(() => {
+    return (
+      isSoilOptimal(soilMoisture) &&
+      isTempOptimal(temperature) &&
+      isHumOptimal(humidity) &&
+      isMq2Optimal(mq2)
+    );
+  }, [soilMoisture, temperature, humidity, mq2]);
+
+  const animationSource = useMemo(() => {
+    if (temperature < 13) {
+      return require('../../assets/images/cold_animation_night.gif');
+    }
+    if (allSensorsOptimal) {
+      return require('../../assets/images/peak_animation_night.gif');
+    }
+    return null;
+  }, [temperature, allSensorsOptimal]);
 
   // Position of the black line (as percentage of screen height)
   // Adjust this value based on your background image
@@ -41,39 +66,17 @@ export default function DashboardScreen() {
           <PixelCameraIcon size={32} color="#FFFFFF" />
         </TouchableOpacity>
 
-        {/* Background Image - Conditional based on emotion state */}
-        {isOkayState ? (
-          <>
-            {/* Layer 1: Bottom background - only bg only.png */}
-            <Image
-              source={require('../../assets/images/only_bg_only.png')}
-              style={[styles.layerImage, { zIndex: 1 }]}
-              contentFit="cover"
-            />
-            {/* Layer 2: Window.png */}
-            <Image
-              source={require('../../assets/images/Window.png')}
-              style={[styles.layerImage, { zIndex: 2 }]}
-              contentFit="cover"
-            />
-            {/* Layer 3: Shelf.png */}
-            <Image
-              source={require('../../assets/images/shelf.png')}
-              style={[styles.layerImage, { zIndex: 3 }]}
-              contentFit="cover"
-            />
-            {/* Layer 4: Pot animated GIF - pot_ok.gif */}
-            <Image
-              source={require('../../assets/images/pot_ok.gif')}
-              style={[styles.layerImage, { zIndex: 4 }]}
-              contentFit="cover"
-            />
-          </>
-        ) : (
-          /* When NOT I_AM_OKAY: Show Background.png */
+        {/* Background Image */}
+        <Image
+          source={require('../../assets/images/bg_only.png')}
+          style={styles.backgroundImage}
+          contentFit="cover"
+        />
+        {/* Plant animation overlay (condition-based GIF) */}
+        {animationSource && (
           <Image
-            source={require('../../assets/images/Background.png')}
-            style={styles.backgroundImage}
+            source={animationSource}
+            style={[styles.layerImage, { zIndex: 2 }]}
             contentFit="cover"
           />
         )}
