@@ -55,6 +55,7 @@ export default function CameraScreen() {
       <View style={styles.controls}>
         <TouchableOpacity onPress={pickFromGallery} style={styles.btn}><Text style={styles.btnText}>Pick</Text></TouchableOpacity>
         <TouchableOpacity onPress={takePhoto} style={[styles.btn, styles.capture]}><Text style={styles.btnText}>Capture</Text></TouchableOpacity>
+        <TouchableOpacity onPress={identifyNow} style={styles.btn}><Text style={styles.btnText}>Identify</Text></TouchableOpacity>
         <TouchableOpacity onPress={goManual} style={styles.btnAlt}><Text style={styles.btnTextAlt}>Choose Manually</Text></TouchableOpacity>
       </View>
 

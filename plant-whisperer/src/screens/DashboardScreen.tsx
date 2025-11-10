@@ -1,17 +1,20 @@
 import React from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePlantState } from '@/src/hooks/usePlantState';
 import { HealthBars } from '@/src/components/HealthBars';
-import { spacing } from '@/src/theme';
+import { spacing, colors } from '@/src/theme';
+import { useRouter } from 'expo-router';
+import { PixelCameraIcon } from '@/src/components/PixelCameraIcon';
 
 /**
  * DashboardScreen - Shows background image with blurred section below black line
  * Health bars are displayed on top of the blurred area
  */
 export default function DashboardScreen() {
+  const router = useRouter();
   const { scores, emotion } = usePlantState();
   const { height: windowHeight } = useWindowDimensions();
 
@@ -99,6 +102,15 @@ export default function DashboardScreen() {
           )}
         </View>
       </View>
+
+      {/* Floating Camera Button (navigate to /camera) */}
+      <TouchableOpacity
+        onPress={() => router.push('/camera')}
+        style={styles.cameraFab}
+        activeOpacity={0.85}
+      >
+        <PixelCameraIcon size={22} color={colors.textOnPrimary} />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -162,5 +174,20 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 16,
     justifyContent: 'flex-start',
+  },
+  cameraFab: {
+    position: 'absolute',
+    right: 16,
+    bottom: 16,
+    backgroundColor: colors.primaryDark,
+    borderColor: colors.pixelOutline,
+    borderWidth: 2,
+    borderRadius: 28,
+    width: 56,
+    height: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20,
+    elevation: 6,
   },
 });
