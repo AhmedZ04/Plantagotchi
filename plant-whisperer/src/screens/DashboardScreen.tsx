@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity, Animated, ImageSourcePropType, Modal, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 // Lazy require to avoid type resolution issues during linting if package isn't installed yet
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const MaskedView = require('@react-native-masked-view/masked-view').default;
@@ -11,7 +10,6 @@ const MaskedView = require('@react-native-masked-view/masked-view').default;
 const AsyncStorage = require('@react-native-async-storage/async-storage').default;
 import { usePlantState } from '@/src/hooks/usePlantState';
 import { HealthBars } from '@/src/components/HealthBars';
-import { PixelCameraIcon } from '@/src/components/PixelCameraIcon';
 import { spacing, colors, typography } from '@/src/theme';
 import {
   isSoilOptimal,
@@ -39,7 +37,6 @@ const WINDY_ANIMATION = require('../../assets/images/windy.gif');
 export default function DashboardScreen() {
   const { scores, rawVitals } = usePlantState();
   const { height: windowHeight, width: windowWidth } = useWindowDimensions();
-  const router = useRouter();
 
   // Sensor status helpers for animation selection
   const { soilMoisture, temperature, humidity, mq2, bio } = rawVitals;
@@ -299,14 +296,7 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.container}>
-        {/* Camera Icon Button - Top Right */}
-        <TouchableOpacity
-          style={styles.cameraButton}
-          onPress={() => router.push('/camera')}
-          activeOpacity={0.7}
-        >
-          <PixelCameraIcon size={32} color="#FFFFFF" />
-        </TouchableOpacity>
+        {/* Camera access is via the initial screen; no camera button here */}
         {/* Daylight toggle (top-left) */}
         <TouchableOpacity
           style={styles.dayToggleButton}
@@ -485,25 +475,6 @@ const styles = StyleSheet.create({
     height: 120,
     borderRadius: 60,
     backgroundColor: '#000', // Mask uses alpha; black shows, transparent hides
-  },
-  cameraButton: {
-    position: 'absolute',
-    top: spacing.md,
-    right: spacing.md,
-    zIndex: 20, // Above all other elements
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: 'rgba(255, 255, 255, 0.3)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5, // Android shadow
   },
   sensorDialogButton: {
     position: 'absolute',
