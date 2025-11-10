@@ -345,6 +345,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textPrimary,
     fontFamily: 'monospace',
+    fontWeight: '700',
     marginTop: 2,
   },
 });

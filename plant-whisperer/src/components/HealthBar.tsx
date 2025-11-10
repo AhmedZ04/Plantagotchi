@@ -214,8 +214,9 @@ export function HealthBar({
   const containerHeight = containerWidth * 0.25; // Aspect ratio from reference
   
   // Heart dimensions
-  const heartSize = containerHeight * 0.8;
-  const heartLeft = -heartSize * 0.15;
+  const heartSize = containerHeight * 0.9;
+  const heartLeft = -heartSize * -.2;
+  const heartTopOffset = containerHeight * 0.085;
   
   // Bar dimensions
   const barLeft = heartSize * 0.5;
@@ -256,7 +257,7 @@ export function HealthBar({
         styles.heartWrapper,
         {
           left: heartLeft,
-          top: containerHeight / 2 - heartSize / 2,
+          top: containerHeight / 2 - heartSize / 2 + heartTopOffset,
           width: heartSize,
           height: heartSize,
         }

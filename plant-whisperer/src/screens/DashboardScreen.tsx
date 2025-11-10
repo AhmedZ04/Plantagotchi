@@ -164,6 +164,9 @@ export default function DashboardScreen() {
   const incomingOpacity = useRef(new Animated.Value(0)).current;
   const isTransitioningRef = useRef(false);
   const revealScale = useRef(new Animated.Value(0)).current;
+  // Background crossfade state (sunny <-> snowy)
+  const [isSnowy, setIsSnowy] = useState(false);
+  const bgFade = useRef(new Animated.Value(0)).current; // 0 = sunny, 1 = snowy
 
   useEffect(() => {
     if (animationSource === currentAnimation) {
@@ -248,6 +251,22 @@ export default function DashboardScreen() {
         >
           <PixelCameraIcon size={32} color="#FFFFFF" />
         </TouchableOpacity>
+        {/* Daylight toggle (top-left) */}
+        <TouchableOpacity
+          style={styles.dayToggleButton}
+          activeOpacity={0.8}
+          onPress={() => {
+            const next = !isSnowy;
+            setIsSnowy(next);
+            Animated.timing(bgFade, {
+              toValue: next ? 1 : 0,
+              duration: 700,
+              useNativeDriver: true,
+            }).start();
+          }}
+        >
+          <Text style={styles.dayToggleText}>{isSnowy ? '☀︎' : '❄︎'}</Text>
+        </TouchableOpacity>
         <TouchableOpacity
           style={styles.sensorDialogButton}
           onPress={() => setSensorDialogVisible(true)}
@@ -256,12 +275,19 @@ export default function DashboardScreen() {
           <Text style={styles.sensorDialogButtonText}>Sensors</Text>
         </TouchableOpacity>
 
-        {/* Background Image */}
+        {/* Background Image with crossfade */}
         <Image
           source={require('../../assets/images/sunny_window.png')}
           style={styles.backgroundImage}
           contentFit="cover"
         />
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: bgFade, zIndex: 1 }]}>
+          <Image
+            source={require('../../assets/images/snowy_window_1.png')}
+            style={styles.backgroundImage}
+            contentFit="cover"
+          />
+        </Animated.View>
         {/* Plant animation overlay (condition-based GIF) */}
         {currentAnimation && (
           <Animated.View
@@ -527,5 +553,23 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontWeight: 'bold',
     fontSize: 14,
+  },
+  dayToggleButton: {
+    position: 'absolute',
+    top: spacing.md,
+    left: spacing.md,
+    zIndex: 21,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  dayToggleText: {
+    color: '#fff',
+    fontSize: 18,
   },
 });
