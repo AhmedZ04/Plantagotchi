@@ -18,7 +18,7 @@ interface HealthBarsProps {
 }
 
 export function HealthBars({ scores }: HealthBarsProps) {
-  const barHeight = 48; // Fixed height for pixel art bars
+  const barHeight = 40; // Reduced height for pixel art bars
   const iconSize = barHeight; // Icon module is square
 
   if (!scores) {
@@ -166,29 +166,25 @@ export function HealthBars({ scores }: HealthBarsProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <>
       {renderHealthBar('hydration', scores.hydrationScore, 'hydration')}
       {renderHealthBar('comfort', scores.comfortScore, 'comfort')}
       {renderHealthBar('airQuality', scores.airQualityScore, 'airQuality')}
       {renderHealthBar('bioLink', scores.bioSignalScore, 'bioLink')}
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    gap: spacing.md,
-    width: '100%',
-  },
   barContainer: {
     marginBottom: spacing.sm,
   },
   barLabel: {
     ...typography.label,
     color: colors.textPrimary,
-    marginBottom: spacing.xs,
+    marginBottom: spacing.xs / 2,
     fontFamily: 'monospace', // Pixel art font
-    fontSize: 14,
+    fontSize: 12,
   },
   barWrapper: {
     flexDirection: 'row',
@@ -242,11 +238,12 @@ const styles = StyleSheet.create({
     backgroundColor: colors.healthBarOuterBorder,
     borderRadius: 0,
     borderWidth: 0,
+    height: '100%',
   },
   barInnerFrame: {
     position: 'absolute',
     left: 3,
-    right: 19, // Leave space for arrow point (16 + 3)
+    right: 17, // Leave space for arrow point (14 + 3)
     backgroundColor: colors.healthBarInnerFrame,
     borderRadius: 0,
     top: 3,
@@ -255,7 +252,7 @@ const styles = StyleSheet.create({
   barContent: {
     position: 'absolute',
     left: 5,
-    right: 21, // Leave space for arrow point (16 + 5)
+    right: 19, // Leave space for arrow point (14 + 5)
     flexDirection: 'row',
     top: 5,
     borderRadius: 0,
@@ -286,8 +283,7 @@ const styles = StyleSheet.create({
   arrowPointContainer: {
     position: 'absolute',
     right: 0,
-    width: 16,
-    height: '100%',
+    width: 14,
     overflow: 'hidden',
   },
   arrowPointTop: {
@@ -296,9 +292,9 @@ const styles = StyleSheet.create({
     top: 0,
     width: 0,
     height: 0,
-    borderLeftWidth: 16,
+    borderLeftWidth: 14,
     borderLeftColor: colors.healthBarOuterBorder,
-    borderTopWidth: 24,
+    borderTopWidth: 20,
     borderTopColor: 'transparent',
     borderBottomWidth: 0,
     borderBottomColor: 'transparent',
@@ -311,9 +307,9 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 0,
     height: 0,
-    borderLeftWidth: 16,
+    borderLeftWidth: 14,
     borderLeftColor: colors.healthBarOuterBorder,
-    borderBottomWidth: 24,
+    borderBottomWidth: 20,
     borderBottomColor: 'transparent',
     borderTopWidth: 0,
     borderTopColor: 'transparent',
