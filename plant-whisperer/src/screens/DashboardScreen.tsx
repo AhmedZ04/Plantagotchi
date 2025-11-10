@@ -116,46 +116,28 @@ export default function DashboardScreen() {
     }
   }, [rawVitals.raindrop]);
   const animationSource = useMemo(() => {
-    // Highest priority: explicit override (e.g., watering)
-    if (overrideAnimation) {
-      return overrideAnimation;
+    const priorityList: Array<[boolean, ImageSourcePropType]> = [
+      [overrideAnimation != null, overrideAnimation as ImageSourcePropType],
+      [allSensorsNonOptimal, FULL_DEAD_ANIMATION],
+      [mq2 >= 350, DIZZY_ANIMATION],
+      [mq2 >= 200, AIR_BAD_ANIMATION],
+      [temperature > 27 || humidity > 80, HOT_ANIMATION],
+      [humidity < 35, DRY_ANIMATION],
+      [soilMoisture >= 900, DRY_ANIMATION],
+      [soilMoisture >= 700 && soilMoisture <= 899, THIRSTY_ANIMATION],
+      [temperature < 13, COLD_ANIMATION],
+      [allSensorsOptimal, PEAK_ANIMATION],
+      [computeBioSignalState(bio) === 'wind_trigger', WINDY_ANIMATION],
+    ];
+
+    for (const [condition, animation] of priorityList) {
+      if (condition) {
+        return animation;
+      }
     }
-    // Highest priority: all sensors failing
-    if (allSensorsNonOptimal) {
-      return FULL_DEAD_ANIMATION;
-    }
-    // Bio signal windy state (loops until back to baseline)
-    if (computeBioSignalState(bio) === 'wind_trigger') {
-      return WINDY_ANIMATION;
-    }
-    // Highest priority: very bad air quality
-    if (mq2 >= 350) {
-      return DIZZY_ANIMATION;
-    }
-    // Next priority: bad air quality
-    if (mq2 >= 200) {
-      return AIR_BAD_ANIMATION;
-    }
-    // Hot or humid
-    if (temperature > 27 || humidity > 80) {
-      return HOT_ANIMATION;
-    }
-    // Dry soil
-    if (soilMoisture >= 900) {
-      return DRY_ANIMATION;
-    }
-    // Thirsty soil
-    if (soilMoisture >= 700 && soilMoisture <= 899) {
-      return THIRSTY_ANIMATION;
-    }
-    if (temperature < 13) {
-      return COLD_ANIMATION;
-    }
-    if (allSensorsOptimal) {
-      return PEAK_ANIMATION;
-    }
+
     return null;
-  }, [overrideAnimation, temperature, humidity, allSensorsOptimal, allSensorsNonOptimal, mq2, soilMoisture, bio]);
+  }, [overrideAnimation, allSensorsNonOptimal, mq2, temperature, humidity, soilMoisture, allSensorsOptimal, bio]);
 
   const [currentAnimation, setCurrentAnimation] = useState<ImageSourcePropType | null>(animationSource);
   const [incomingAnimation, setIncomingAnimation] = useState<ImageSourcePropType | null>(null);
@@ -174,7 +156,7 @@ export default function DashboardScreen() {
     }
 
     // If no specific animation is requested, keep showing the current one
-    // (prevents gaps when a condition deactivates but no other takes over immediately)
+    // (avoids empty state when we don't have a dedicated animation)
     if (!animationSource) return;
 
     if (!currentAnimation) {

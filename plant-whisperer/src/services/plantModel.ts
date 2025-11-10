@@ -242,8 +242,8 @@ export function computeOverallHealth(soil: number, temp: number, hum: number, mq
  * Returns true if optimal, false if not
  */
 export function isSoilOptimal(soil: number): boolean {
-  // Optimal range: 400-699 (okay/moist state)
-  return soil >= 400 && soil <= 699;
+  // Optimal range aligned with animation thresholds: anything below 700 is considered optimal
+  return soil < 700;
 }
 
 export function isTempOptimal(temp: number): boolean {
@@ -252,8 +252,10 @@ export function isTempOptimal(temp: number): boolean {
 }
 
 export function isHumOptimal(hum: number): boolean {
-  // Optimal range: 40-80% (hot/humid animation triggers above 80)
-  return hum >= 40 && hum <= 80;
+  // Optimal range aligned with animation thresholds: 35-80%
+  // - < 35% triggers dry-air animation
+  // - > 80% contributes to hot/humid animation
+  return hum >= 35 && hum <= 80;
 }
 
 export function isMq2Optimal(mq2: number): boolean {
