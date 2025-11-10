@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plant Whisperer - Sensor Control</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+      background-color: #fafafa;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    .status {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .status-badge {
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .status-connected {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .status-disconnected {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .status-streaming {
+      background-color: #ff9800;
+      color: white;
+    }
+
+    .mode-switcher {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .mode-switcher h2 {
+      margin-bottom: 15px;
+      font-size: 20px;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .mode-button {
+      padding: 12px 24px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .mode-button.active {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .mode-button:not(.active) {
+      background-color: #e0e0e0;
+      color: #666;
+    }
+
+    .mode-button:not(.active):hover {
+      background-color: #d0d0d0;
+    }
+
+    .mode-info {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .mode-info.real {
+      background-color: #e3f2fd;
+      color: #1976d2;
+    }
+
+    .mode-info.mock {
+      background-color: #fff3e0;
+      color: #f57c00;
+    }
+
+    .controls-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .controls-panel h2 {
+      margin-bottom: 20px;
+      font-size: 20px;
+    }
+
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .control-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #333;
+    }
+
+    .control-slider {
+      width: 100%;
+    }
+
+    .control-input {
+      width: 100%;
+      padding: 6px 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .button-primary {
+      background-color: #4caf50;
+      color: white;
+    }
+
+    .button-primary:hover {
+      background-color: #45a049;
+    }
+
+    .button-danger {
+      background-color: #f44336;
+      color: white;
+    }
+
+    .button-danger:hover {
+      background-color: #da190b;
+    }
+
+    .button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+    .interval-input {
+      padding: 8px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 120px;
+    }
+
+    .preview-panel {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .preview-panel h2 {
+      margin-bottom: 20px;
+      font-size: 20px;
+    }
+
+    .code-block {
+      display: block;
+      padding: 12px;
+      background-color: #f5f5f5;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 14px;
+      color: #333;
+      border: 1px solid #ddd;
+      word-break: break-all;
+      margin-bottom: 20px;
+    }
+
+    .sensor-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+
+    .sensor-table th,
+    .sensor-table td {
+      padding: 12px;
+      text-align: left;
+      border: 1px solid #ddd;
+    }
+
+    .sensor-table th {
+      background-color: #f5f5f5;
+      font-weight: 600;
+    }
+
+    .note {
+      margin-top: 20px;
+      padding: 12px;
+      background-color: #e3f2fd;
+      border-radius: 4px;
+      color: #1976d2;
+      font-size: 14px;
+    }
+
+    .disabled-overlay {
+      opacity: 0.5;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌱 Plant Whisperer - Sensor Control</h1>
+      <div class="status">
+        <span id="connectionStatus" class="status-badge status-disconnected">● Disconnected</span>
+        <span id="streamingStatus" class="status-badge status-streaming" style="display: none;">Streaming...</span>
+      </div>
+    </header>
+
+    <div class="mode-switcher">
+      <h2>Mode Selection</h2>
+      <div class="mode-buttons">
+        <button id="realModeBtn" class="mode-button active" onclick="setMode('real')">
+          🔌 Real Mode (Arduino)
+        </button>
+        <button id="mockModeBtn" class="mode-button" onclick="setMode('mock')">
+          🎮 Mock Mode (Simulated)
+        </button>
+      </div>
+      <div id="modeInfo" class="mode-info real">
+        <strong>Real Mode Active:</strong> Reading sensor data from Arduino via serial port (COM11). Serial port data will be broadcast to the Android app.
+      </div>
+    </div>
+
+    <div class="controls-panel" id="controlsPanel">
+      <h2>Sensor Controls <span id="modeLabel">(Mock Mode Only)</span></h2>
+      <div id="controlsContent" class="disabled-overlay">
+        <div class="controls-grid">
+          <div class="control-group">
+            <label class="control-label">Soil Moisture (raw): <span id="soilValue">550</span></label>
+            <input type="range" id="soilSlider" class="control-slider" min="0" max="1023" value="550" oninput="updateSensor('soil', this.value)">
+            <input type="number" id="soilInput" class="control-input" min="0" max="1023" value="550" onchange="updateSensor('soil', this.value)">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Temperature (°C): <span id="tempValue">23.0</span></label>
+            <input type="range" id="tempSlider" class="control-slider" min="10" max="35" step="0.1" value="23.0" oninput="updateSensor('temp', this.value)">
+            <input type="number" id="tempInput" class="control-input" min="10" max="35" step="0.1" value="23.0" onchange="updateSensor('temp', this.value)">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Humidity (% RH): <span id="humValue">60.0</span></label>
+            <input type="range" id="humSlider" class="control-slider" min="20" max="90" step="0.1" value="60.0" oninput="updateSensor('hum', this.value)">
+            <input type="number" id="humInput" class="control-input" min="20" max="90" step="0.1" value="60.0" onchange="updateSensor('hum', this.value)">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">MQ-2 Air Quality (raw): <span id="mq2Value">70</span></label>
+            <input type="range" id="mq2Slider" class="control-slider" min="0" max="1023" value="70" oninput="updateSensor('mq2', this.value)">
+            <input type="number" id="mq2Input" class="control-input" min="0" max="1023" value="70" onchange="updateSensor('mq2', this.value)">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">Raindrop Sensor (raw): <span id="rainValue">1020</span></label>
+            <input type="range" id="rainSlider" class="control-slider" min="0" max="1023" value="1020" oninput="updateSensor('rain', this.value)">
+            <input type="number" id="rainInput" class="control-input" min="0" max="1023" value="1020" onchange="updateSensor('rain', this.value)">
+          </div>
+
+          <div class="control-group">
+            <label class="control-label">BioAmp EXG (raw): <span id="bioValue">500</span></label>
+            <input type="range" id="bioSlider" class="control-slider" min="0" max="1023" value="500" oninput="updateSensor('bio', this.value)">
+            <input type="number" id="bioInput" class="control-input" min="0" max="1023" value="500" onchange="updateSensor('bio', this.value)">
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="button button-primary" onclick="sendOnce()" id="sendOnceBtn">Send Once</button>
+          <input type="number" id="intervalInput" class="interval-input" min="100" max="10000" step="100" value="1000" placeholder="Interval (ms)">
+          <button class="button button-primary" onclick="startStream()" id="startStreamBtn">Start Stream</button>
+          <button class="button button-danger" onclick="stopStream()" id="stopStreamBtn" style="display: none;">Stop Stream</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="preview-panel">
+      <h2>Preview - What Android App Receives</h2>
+      <div id="previewContent">
+        <p style="color: #666; font-style: italic;">Waiting for sensor data...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const WS_URL = 'ws://localhost:4000/ws';
+    const API_URL = 'http://localhost:4000/api';
+
+    let ws = null;
+    let currentMode = 'real';
+    let isStreaming = false;
+    let sensorState = {
+      soil: 550,
+      temp: 23.0,
+      hum: 60.0,
+      mq2: 70,
+      rain: 1020,
+      bio: 500,
+    };
+
+    // Connect to WebSocket
+    function connectWebSocket() {
+      ws = new WebSocket(WS_URL);
+
+      ws.onopen = () => {
+        console.log('Connected to server');
+        updateConnectionStatus(true);
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          
+          // Only handle sensor data messages (ignore any other message types)
+          // Mode changes are handled via API polling, not WebSocket messages
+          if (data.line && data.json) {
+            updatePreview(data);
+            // Update UI with received values (for real mode)
+            if (currentMode === 'real') {
+              updateSensorUI(data.json);
+            }
+          }
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        updateConnectionStatus(false);
+      };
+
+      ws.onclose = () => {
+        console.log('Disconnected from server');
+        updateConnectionStatus(false);
+        // Try to reconnect after 3 seconds
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+
+    // Get current mode from server
+    async function getCurrentMode() {
+      try {
+        const response = await fetch(`${API_URL}/mode`);
+        const data = await response.json();
+        currentMode = data.mode;
+        updateModeUI();
+      } catch (error) {
+        console.error('Error getting mode:', error);
+      }
+    }
+
+    // Set mode (real or mock)
+    async function setMode(mode) {
+      try {
+        const response = await fetch(`${API_URL}/mode`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mode }),
+        });
+        const data = await response.json();
+        currentMode = data.mode;
+        updateModeUI();
+        
+        // Mode changes are handled via API, not WebSocket
+        // WebSocket is only for sensor data
+      } catch (error) {
+        console.error('Error setting mode:', error);
+        alert('Error switching mode: ' + error.message);
+      }
+    }
+
+    // Update mode UI
+    function updateModeUI() {
+      const realBtn = document.getElementById('realModeBtn');
+      const mockBtn = document.getElementById('mockModeBtn');
+      const modeInfo = document.getElementById('modeInfo');
+      const controlsPanel = document.getElementById('controlsPanel');
+      const controlsContent = document.getElementById('controlsContent');
+      const modeLabel = document.getElementById('modeLabel');
+
+      if (currentMode === 'real') {
+        realBtn.classList.add('active');
+        mockBtn.classList.remove('active');
+        modeInfo.className = 'mode-info real';
+        modeInfo.innerHTML = '<strong>Real Mode Active:</strong> Reading sensor data from Arduino via serial port. Serial port data will be broadcast to the Android app. Mock controls are disabled.';
+        controlsContent.classList.add('disabled-overlay');
+        modeLabel.textContent = '(Real Mode - Controls Disabled)';
+      } else {
+        realBtn.classList.remove('active');
+        mockBtn.classList.add('active');
+        modeInfo.className = 'mode-info mock';
+        modeInfo.innerHTML = '<strong>Mock Mode Active:</strong> Using simulated sensor values. Adjust the controls below to send mock data to the Android app.';
+        controlsContent.classList.remove('disabled-overlay');
+        modeLabel.textContent = '(Mock Mode - Adjust Values)';
+      }
+    }
+
+    // Update sensor value
+    function updateSensor(field, value) {
+      const numValue = parseFloat(value);
+      sensorState[field] = numValue;
+      
+      // Update display
+      document.getElementById(field + 'Value').textContent = 
+        field === 'soil' || field === 'mq2' || field === 'rain' || field === 'bio' 
+          ? Math.round(numValue) 
+          : numValue.toFixed(1);
+      
+      // Sync slider and input
+      document.getElementById(field + 'Slider').value = value;
+      document.getElementById(field + 'Input').value = value;
+    }
+
+    // Update sensor UI from received data
+    function updateSensorUI(data) {
+      updateSensor('soil', data.soil);
+      updateSensor('temp', data.temp);
+      updateSensor('hum', data.hum);
+      updateSensor('mq2', data.mq2);
+      updateSensor('rain', data.rain);
+      updateSensor('bio', data.bio);
+    }
+
+    // Send mock sensor values once
+    async function sendOnce() {
+      if (currentMode !== 'mock') {
+        alert('Mock mode must be enabled to send sensor values');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/mock/sensors`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(sensorState),
+        });
+        
+        if (response.ok) {
+          console.log('Mock sensor values sent');
+        }
+      } catch (error) {
+        console.error('Error sending mock values:', error);
+        alert('Error sending mock values: ' + error.message);
+      }
+    }
+
+    // Start streaming
+    function startStream() {
+      if (currentMode !== 'mock') {
+        alert('Mock mode must be enabled to start streaming');
+        return;
+      }
+
+      const intervalMs = parseInt(document.getElementById('intervalInput').value) || 1000;
+      
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'start',
+          intervalMs,
+        }));
+        isStreaming = true;
+        updateStreamingStatus();
+      }
+    }
+
+    // Stop streaming
+    function stopStream() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'stop' }));
+        isStreaming = false;
+        updateStreamingStatus();
+      }
+    }
+
+    // Update connection status
+    function updateConnectionStatus(connected) {
+      const statusEl = document.getElementById('connectionStatus');
+      if (connected) {
+        statusEl.className = 'status-badge status-connected';
+        statusEl.textContent = '● Connected';
+      } else {
+        statusEl.className = 'status-badge status-disconnected';
+        statusEl.textContent = '● Disconnected';
+      }
+    }
+
+    // Update streaming status
+    function updateStreamingStatus() {
+      const streamingEl = document.getElementById('streamingStatus');
+      const startBtn = document.getElementById('startStreamBtn');
+      const stopBtn = document.getElementById('stopStreamBtn');
+      
+      if (isStreaming) {
+        streamingEl.style.display = 'inline-block';
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-block';
+      } else {
+        streamingEl.style.display = 'none';
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+      }
+    }
+
+    // Update preview
+    function updatePreview(payload) {
+      const previewContent = document.getElementById('previewContent');
+      previewContent.innerHTML = `
+        <div>
+          <h3 style="margin-bottom: 10px; font-size: 16px;">Arduino-style Line Format:</h3>
+          <code class="code-block">${payload.line}</code>
+        </div>
+        <div>
+          <h3 style="margin-bottom: 10px; font-size: 16px;">Parsed JSON Values:</h3>
+          <table class="sensor-table">
+            <thead>
+              <tr>
+                <th>Sensor</th>
+                <th>Value</th>
+                <th>Description</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>soil</strong></td>
+                <td>${Math.round(payload.json.soil)}</td>
+                <td>Soil moisture (raw 0-1023)</td>
+              </tr>
+              <tr>
+                <td><strong>temp</strong></td>
+                <td>${payload.json.temp.toFixed(1)}°C</td>
+                <td>Temperature</td>
+              </tr>
+              <tr>
+                <td><strong>hum</strong></td>
+                <td>${payload.json.hum.toFixed(1)}%</td>
+                <td>Humidity (% RH)</td>
+              </tr>
+              <tr>
+                <td><strong>mq2</strong></td>
+                <td>${Math.round(payload.json.mq2)}</td>
+                <td>MQ-2 gas/smoke (raw 0-1023)</td>
+              </tr>
+              <tr>
+                <td><strong>rain</strong></td>
+                <td>${Math.round(payload.json.rain)}</td>
+                <td>Raindrop sensor (raw 0-1023)</td>
+              </tr>
+              <tr>
+                <td><strong>bio</strong></td>
+                <td>${payload.json.bio.toFixed(2)}</td>
+                <td>BioAmp EXG signal (raw 0-1023)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="note">
+          <strong>Note:</strong> This is exactly what the Android app receives via WebSocket.
+        </div>
+      `;
+    }
+
+    // Initialize
+    window.addEventListener('load', () => {
+      connectWebSocket();
+      getCurrentMode();
+    });
+  </script>
+</body>
+</html>
+
