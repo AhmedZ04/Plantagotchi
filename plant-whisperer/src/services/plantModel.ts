@@ -294,7 +294,7 @@ export function computeBioSignalState(bio: number): BioSignalState {
   const baseline = updateBioBaseline(bio);
 
   // Check for extreme spikes/drops (wind simulation)
-  if (bio > 900 || bio < 50) {
+  if (bio > 900 || bio < 25) {
     return 'wind_trigger';
   }
 
