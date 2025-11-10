@@ -239,10 +239,20 @@ export function usePlantState(): UsePlantStateReturn {
     // 2. Development machine IP from Expo - for WiFi connection
     // 3. Emulator address (10.0.2.2) - for Android emulator
     // 4. Localhost - for iOS simulator/web
-    
     let wsUrl = 'ws://localhost:4000/ws';
-    
-    if (Platform.OS === 'android') {
+    // Allow explicit override via env or app.json extra
+    let overrideActive = false;
+    try {
+      const extra: any = (Constants as any).expoConfig?.extra || {};
+      const override = extra.expoPublicWsUrl || (process as any).env?.EXPO_PUBLIC_WS_URL;
+      if (override && typeof override === 'string' && override.length > 0) {
+        wsUrl = override;
+        overrideActive = true;
+        console.log('WS override in use:', wsUrl);
+      }
+    } catch {}
+
+    if (Platform.OS === 'android' && !overrideActive) {
       // Check if running in Expo Go or development build
       // Try multiple ways to get the development server URL
       const expoConfig = Constants.expoConfig;
@@ -345,3 +355,5 @@ export function usePlantState(): UsePlantStateReturn {
     level: 1,
   };
 }
+
+

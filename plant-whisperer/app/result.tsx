@@ -1,4 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchCareFieldsForName } from '@/src/services/perenual';
+import { fetchPlantbookForName } from '@/src/services/plantbook';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { identifyPlantFromUri, PlantNetResponse } from '../lib/plantnet';
@@ -16,6 +19,24 @@ export default function ResultScreen() {
         if (!uri) throw new Error('No image URI provided.');
         const data = await identifyPlantFromUri(uri as string);
         setResp(data);
+        // Fire-and-forget care API calls; errors are ignored here
+        try {
+          const top = data?.results?.[0];
+          const sciNoAuthor = top?.species?.scientificNameWithoutAuthor;
+          const canon = sciNoAuthor && typeof sciNoAuthor === 'string' ? sciNoAuthor.replace(/\\s+/g, ' ').trim() : null;
+          if (canon) {
+            fetchCareFieldsForName(canon, top?.species?.commonNames?.[0]).catch(() => {});
+            fetchPlantbookForName(canon, top?.species?.commonNames?.[0]).catch(() => {});
+          }
+        } catch {}
+        const top = data?.results?.[0];
+        const sciNoAuthor = top?.species?.scientificNameWithoutAuthor;
+        if (sciNoAuthor && typeof sciNoAuthor === 'string') {
+          const canon = sciNoAuthor.replace(/\s+/g, ' ').trim();
+          try { await AsyncStorage.setItem('selectedSpeciesName', canon); } catch {}
+          // Navigate to dashboard after brief delay
+          setTimeout(() => router.replace('/dashboard'), 400);
+        }
       } catch (e: any) {
         setErr(e.message ?? String(e));
       } finally {
@@ -78,4 +99,5 @@ const styles = StyleSheet.create({
   h2: { fontSize: 16, fontWeight: '700', marginBottom: 6 },
   alt: { marginBottom: 4 }
 });
+
 
