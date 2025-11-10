@@ -1,4 +1,5 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { identifyPlantFromUri, PlantNetResponse } from '../lib/plantnet';
@@ -47,6 +48,12 @@ export default function ResultScreen() {
             setPb(null);
             setPbErr(errPb?.message ?? String(errPb));
           }
+          // Persist selected species so dashboard can load care targets/benchmarks
+          try {
+            await AsyncStorage.setItem('selectedSpeciesName', canon);
+          } catch {}
+          // Navigate to dashboard after brief delay to show results
+          setTimeout(() => router.replace('/dashboard'), 400);
         } else {
           setCanonicalName(null);
         }

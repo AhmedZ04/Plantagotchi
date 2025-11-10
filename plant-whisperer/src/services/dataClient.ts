@@ -108,28 +108,43 @@ class DataClient {
       this.ws.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data);
-          
-          // Only process messages that have the sensor data format (line and json fields)
-          // Ignore any other message types (like mode changes, etc.)
-          if (!data.line || !data.json) {
-            // Not a sensor data message, ignore it silently
+
+          // Accept either wrapped shape { line, json: SensorState } or direct SensorState
+          let s: any | null = null;
+          if (data && typeof data === 'object') {
+            if (data.json && typeof data.json === 'object') {
+              s = data.json;
+            } else if (
+              ('soil' in data) || ('temp' in data) || ('hum' in data) || ('mq2' in data) || ('rain' in data) || ('bio' in data)
+            ) {
+              s = data;
+            }
+          }
+
+          if (!s) {
+            // Not a sensor payload; ignore quietly
             return;
           }
-          
-          const payload: WireStatePayload = data;
-          
-          // Validate payload has required fields
+
+          // Coerce string numbers → number
+          const toNum = (v: any): number => (typeof v === 'string' ? parseFloat(v) : v);
+          const sensor: SensorState = {
+            soil: toNum(s.soil),
+            temp: toNum(s.temp),
+            hum: toNum(s.hum),
+            mq2: toNum(s.mq2),
+            rain: toNum(s.rain),
+            bio: toNum(s.bio),
+          };
+
+          // Validate
           if (
-            typeof payload.json?.soil === 'number' &&
-            typeof payload.json?.temp === 'number' &&
-            typeof payload.json?.hum === 'number' &&
-            typeof payload.json?.mq2 === 'number' &&
-            typeof payload.json?.rain === 'number' &&
-            typeof payload.json?.bio === 'number'
+            [sensor.soil, sensor.temp, sensor.hum, sensor.mq2, sensor.rain, sensor.bio]
+              .every((v) => typeof v === 'number' && !Number.isNaN(v))
           ) {
-            this.onUpdateCallback?.(payload.json);
+            this.onUpdateCallback?.(sensor);
           } else {
-            console.warn('Invalid sensor data received:', payload);
+            console.warn('Invalid sensor data received:', data);
           }
         } catch (error) {
           console.error('Error parsing WebSocket message:', error);

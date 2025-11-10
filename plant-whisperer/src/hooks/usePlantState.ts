@@ -25,6 +25,7 @@ import {
   computeComfortScore,
   computeAirQualityScore,
   computeBioSignalScore,
+  computeBioSignalState,
   deriveMood,
   deriveEmotionState,
   getEmotionMessage,
@@ -122,6 +123,7 @@ export function usePlantState(): UsePlantStateReturn {
   const [simulationMode, setSimulationModeState] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('idle');
   const [careTargets, setCareTargets] = useState<CareTargets | null>(null);
+  const [speciesName, setSpeciesName] = useState<string>('Philodendron Birkin');
   
   // Refs to track previous values for change detection
   const prevEmotionRef = useRef<EmotionState>('I_AM_OKAY');
@@ -135,6 +137,8 @@ export function usePlantState(): UsePlantStateReturn {
   const giRef = useRef<number>(1.0); // 0..1
   const mq2WindowRef = useRef<number[]>([]);
   const highZHitsRef = useRef<number>(0);
+  // Wind (BioAmp EXG) disturbance factor (1 calm .. lower = disturbance)
+  const windFactorRef = useRef<number>(1.0);
   
   // Compute scores from raw vitals (defined first so it can be used in initialization)
   const computeScores = useCallback((raw: PlantVitalsRaw): PlantScores => {
@@ -161,13 +165,15 @@ export function usePlantState(): UsePlantStateReturn {
     min_soil_moist: 15,
   };
 
-  // Attempt to hydrate care targets from Plantbook cache (if user identified a plant earlier)
+  // Load selected species, then hydrate care targets from Plantbook cache
   useEffect(() => {
     const PB_CACHE_PREFIX = 'pb:v1:';
     const normalize = (s: string) => s.replace(/\s+/g, ' ').trim().toLowerCase();
     (async () => {
       try {
-        const key = PB_CACHE_PREFIX + normalize('Philodendron Birkin'); // default species for this build
+        const sel = (await AsyncStorage.getItem('selectedSpeciesName')) || speciesName;
+        setSpeciesName(sel);
+        const key = PB_CACHE_PREFIX + normalize(sel);
         const raw = await AsyncStorage.getItem(key);
         if (raw) {
           const pb = JSON.parse(raw) as Partial<CareTargets> & { [k: string]: any };
@@ -254,7 +260,8 @@ export function usePlantState(): UsePlantStateReturn {
   useEffect(() => {
     (async () => {
       try {
-        const norm = 'philodendron birkin';
+        const sel = (await AsyncStorage.getItem('selectedSpeciesName')) || speciesName;
+        const norm = sel.replace(/\s+/g, ' ').trim().toLowerCase();
         const lastKey = `watering:last:${norm}`;
         const benchKey = `watering:benchDays:${norm}`;
         const [lastRaw, benchRaw] = await Promise.all([
@@ -269,9 +276,9 @@ export function usePlantState(): UsePlantStateReturn {
           const d = parseFloat(benchRaw);
           if (!isNaN(d) && d > 0.1) setBenchmarkDays(d);
         }
-        // Try fetch from Perenual for default species
+        // Try fetch from Perenual for selected species
         try {
-          const care = await fetchCareFieldsForName('Philodendron Birkin', 'Philodendron');
+          const care = await fetchCareFieldsForName(sel, sel.split(' ')[0]);
           const v = care?.watering_general_benchmark?.value;
           const u = care?.watering_general_benchmark?.unit;
           const d = parseBenchmarkDays(v ?? null, u ?? null);
@@ -306,10 +313,11 @@ export function usePlantState(): UsePlantStateReturn {
     if (wetStreakRef.current >= REQUIRED_WET_STREAK) {
       lastWateredAtRef.current = nowMs;
       wetStreakRef.current = 0;
-      // Persist last watered timestamp for default species
+      // Persist last watered timestamp for selected species
       (async () => {
         try {
-          const norm = 'philodendron birkin';
+          const sel = (await AsyncStorage.getItem('selectedSpeciesName')) || speciesName;
+          const norm = sel.replace(/\s+/g, ' ').trim().toLowerCase();
           await AsyncStorage.setItem(`watering:last:${norm}`, String(nowMs));
         } catch {}
       })();
@@ -345,11 +353,23 @@ export function usePlantState(): UsePlantStateReturn {
     }
     const gi = giRef.current;
 
+    // --- Wind disturbance via BioAmp EXG (instant visible effect + quick recovery)
+    // Use existing state mapping for spikes/deviations
+    const bioState = computeBioSignalState(raw.bio);
+    const WIND_HIT_FACTOR = 0.85; // immediate 15% drop when wind detected
+    const WIND_RECOVERY_ALPHA = 0.05; // recover ~5% of remaining gap per update
+    if (bioState === 'wind_trigger') {
+      windFactorRef.current = Math.min(windFactorRef.current, WIND_HIT_FACTOR);
+    } else {
+      windFactorRef.current = Math.min(1, windFactorRef.current + (1 - windFactorRef.current) * WIND_RECOVERY_ALPHA);
+    }
+    const windFactor = windFactorRef.current;
+
     // --- Multiplicative PCS with Wi/Gi modifiers
     const comfortBase = 0.5 * newMetrics.moistureIndex + 0.25 * newMetrics.tempComfortIndex + 0.25 * newMetrics.humidityComfortIndex;
     const waterFactor = 0.90 + 0.10 * Math.min(wi, newMetrics.moistureIndex);
     const gasFactor = 0.70 + 0.30 * gi;
-    const pcsMul = clamp(comfortBase * waterFactor * gasFactor, 0, 1);
+    const pcsMul = clamp(comfortBase * waterFactor * gasFactor * windFactor, 0, 1);
     newMetrics.pcs = pcsMul;
     const newMood = deriveMood(newScores);
     const newEmotion = deriveEmotionState(newScores, raw);
@@ -472,10 +492,20 @@ export function usePlantState(): UsePlantStateReturn {
     // 2. Development machine IP from Expo - for WiFi connection
     // 3. Emulator address (10.0.2.2) - for Android emulator
     // 4. Localhost - for iOS simulator/web
-    
     let wsUrl = 'ws://localhost:4000/ws';
+    // Allow explicit override via env or app.json extra
+    let overrideActive = false;
+    try {
+      const extra: any = (Constants as any).expoConfig?.extra || {};
+      const override = extra.expoPublicWsUrl || (process as any).env?.EXPO_PUBLIC_WS_URL;
+      if (override && typeof override === 'string') {
+        wsUrl = override;
+        overrideActive = true;
+        console.log('WS override in use:', wsUrl);
+      }
+    } catch {}
     
-    if (Platform.OS === 'android') {
+    if (Platform.OS === 'android' && !overrideActive) {
       // Check if running in Expo Go or development build
       // Try multiple ways to get the development server URL
       const expoConfig = Constants.expoConfig;
@@ -491,6 +521,9 @@ export function usePlantState(): UsePlantStateReturn {
           wsUrl = `ws://${ipMatch[1]}:4000/ws`;
           console.log('🌐 Using WiFi connection - Development machine IP:', wsUrl);
           console.log('   Extracted from Expo hostUri:', hostUri);
+          if ((ipMatch[1] === '127.0.0.1') || (ipMatch[1] === 'localhost')) {
+            console.log('Note: 127.0.0.1 on a physical device requires adb reverse tcp:4000 tcp:4000 OR set extra.expoPublicWsUrl to ws://<your-ip>:4000/ws');
+          }
         } else {
           // Fallback to emulator address
           wsUrl = 'ws://10.0.2.2:4000/ws';

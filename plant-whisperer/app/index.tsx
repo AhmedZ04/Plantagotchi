@@ -1,8 +1,6 @@
 /**
- * Main entry point - Dashboard Screen
- * This is the first screen users see when the app launches
+ * Main entry point - Camera Screen
+ * App opens to camera; after identification we navigate to dashboard
  */
 
-import DashboardScreen from '@/src/screens/DashboardScreen';
-
-export default DashboardScreen;
+export { default } from './camera';

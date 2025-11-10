@@ -1,12 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, useWindowDimensions, Text, TouchableOpacity } from 'react-native';
+import { View, StyleSheet, useWindowDimensions, Text } from 'react-native';
 import { Image } from 'expo-image';
 import { BlurView } from 'expo-blur';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { usePlantState } from '@/src/hooks/usePlantState';
 import { HealthBars } from '@/src/components/HealthBars';
-import { useRouter } from 'expo-router';
-import { PixelCameraIcon } from '@/src/components/PixelCameraIcon';
 import { spacing, colors, typography } from '@/src/theme';
 
 /**
@@ -18,7 +16,6 @@ export default function DashboardScreen() {
   const { scores, emotion, rawVitals, metrics, careTargets, setRealtimeMode } = usePlantState();
 
   const { height: windowHeight } = useWindowDimensions();
-  const router = useRouter();
 
   // Check if emotion is I_AM_OKAY
   const isOkayState = emotion === 'I_AM_OKAY';
@@ -34,14 +31,6 @@ export default function DashboardScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={[]}>
       <View style={styles.container}>
-        {/* Camera Icon Button - Top Right */}
-        <TouchableOpacity
-          style={styles.cameraButton}
-          onPress={() => router.push('/camera')}
-          activeOpacity={0.7}
-        >
-          <PixelCameraIcon size={32} color="#FFFFFF" />
-        </TouchableOpacity>
 
         {/* Background Image - Conditional based on emotion state */}
         {isOkayState ? (
@@ -114,14 +103,7 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {/* Floating Camera Button (navigate to /camera) */}
-      <TouchableOpacity
-        onPress={() => router.push('/camera')}
-        style={styles.cameraFab}
-        activeOpacity={0.85}
-      >
-        <PixelCameraIcon size={22} color={colors.textOnPrimary} />
-      </TouchableOpacity>
+      {/* Camera access has moved to the initial flow; no floating button here */}
     </SafeAreaView>
   );
 }
