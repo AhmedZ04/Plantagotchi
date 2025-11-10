@@ -28,7 +28,7 @@ export default function ResultScreen() {
           const canon = normalizeSpeciesName(sciNoAuthor);
           setCanonicalName(canon);
           try {
-            const fields = await fetchCareFieldsForName(canon);
+            const fields = await fetchCareFieldsForName(canon, top?.species?.commonNames?.[0]);
             setCare(fields);
             setCareErr(null);
           } catch (perErr: any) {
