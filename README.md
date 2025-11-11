@@ -1,6 +1,67 @@
-# Plant Whisperer
+# 🌿 Plantagotchi – Interactive Illustrated Plant Care App
 
-A pixel art style plant care game app with real-time sensor monitoring.
+<div align="center">
+  <img src="Animations/Icons/Green_Soil.png" alt="Plant Whisperer Logo" width="100" height="100">
+
+  **A hand-drawn digital companion that lets plants “speak” through real-time sensor emotions.**
+  
+  [![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
+  [![Expo](https://img.shields.io/badge/Expo-000020?style=for-the-badge&logo=expo&logoColor=white)](https://expo.dev/)
+  [![Node.js](https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white)](https://nodejs.org/)
+  [![WebSocket](https://img.shields.io/badge/WebSocket-4B8BBE?style=for-the-badge&logo=socket.io&logoColor=white)](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+</div>
+
+---
+
+## 📖 About
+
+We grow up learning how to care for pets and people — but not always for the quiet life thriving around us.  
+**Plantagotchi** reimagines that connection by turning plant care into an *interactive, emotional experience* where **nature finally speaks back**.  
+
+It’s not just about keeping a plant alive — it’s about learning to *listen, bond, and grow alongside it*.  
+Through bioelectrical signals and live environmental readings, your plant expresses how it feels through hand-drawn emotions and dialogue bubbles, creating a playful, expressive relationship between you and nature.
+
+
+---
+
+## ✨ Features
+
+### 🌤️ **Real-Time Emotional Feedback**
+- The plant reacts dynamically to changes in temperature, humidity, and soil moisture.  
+- When you water it or when the weather shifts, its expression changes immediately.  
+- See emotion bubbles like *“Whoa, the wind is tossing me!”* or *“I’m thirsty!”* in real time.
+
+### 🧠 **Smart Sensor Integration**
+- **BioAmp EXG Pill** detects micro-voltage bio-signals.  
+- **MQ-3**, **HL-83**, **YL-69**, and **DHT11** monitor air, water, soil, and temperature.  
+- The **Arduino UNO R3** streams data to a backend via **WebSockets** for seamless, live updates.
+
+### 🎨 **Illustrated Art Style**
+- Soft, cozy, **hand-drawn visuals** instead of pixel art.  
+- Every emotion — happy, tired, dizzy, or peaceful — is drawn with expressive faces, props, and speech bubbles.  
+- Crafted for **universal appeal**, from kids to educators to eco-tech enthusiasts.
+
+### 💬 **End-to-End Interactive System**
+- **Hardware**: Real sensors capture live environmental and biological signals.  
+- **Backend**: Processing pipeline filters noise and interprets plant mood.  
+- **Frontend**: A React Native app displays the plant’s reactions in smooth, illustrated animations.
+
+---
+
+## 🎨 Screenshots & Live Animations
+
+| 🌞 **Perfect Conditions** | 💧 **Thirsty Mode** | 🥵 **Dizzy** |
+|------------------------|--------------------|----------------|
+| ![Perfect](./Animations/Final/Day/okay_animation_day.gif) | ![Thirsty](./Animations/Final/Day/thirsty_animation_day.gif) | ![Bad Air Quality](./Animations/Final/Day/dizzy_animation_day.gif) |
+| *Healthy and happy plant in stable conditions* | *Soil moisture too low — needs water!* | *Poor air or gas conditions causing stress* |
+
+| 🌙 **Night Mode** | 😵 **Dizzy Mode** | 💤 **Dead Mode** |
+|-------------------|------------------|----------------|
+| ![Night Okay](./Animations/Themes/Night/stable_animation.gif) | ![Dizzy](./Animations/Final/Night/dizzy_animation.gif) | ![Rest](./Animations/Final/Day/full_dead_animation_day.gif) |
+| *Relaxed under night lighting* | *Poor air or gas conditions causing stress* | *Plant in worst conditions* |
+
+
+---
 
 ## 🚀 Quick Start
 
