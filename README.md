@@ -63,9 +63,8 @@ Through bioelectrical signals and live environmental readings, your plant expres
 ---
 ## 🎥 Demo
 
-<div align="center">
-  🎥 **[Plantagotchi Live Demo](https://youtube.com/shorts/_Rtnkhy3jHY?si=Nw0nGcZnq8E2Oxly)**
-</div>
+[**Plantagotchi Live Demo ▶️**](https://youtube.com/shorts/_Rtnkhy3jHY?si=Nw0nGcZnq8E2Oxly)
+
 ---
 
 ## 🚀 Quick Start
