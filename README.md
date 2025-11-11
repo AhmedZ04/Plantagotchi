@@ -52,13 +52,13 @@ Through bioelectrical signals and live environmental readings, your plant expres
 
 | 🌞 **Perfect Conditions** | 💧 **Thirsty Mode** | 🥵 **Dizzy** |
 |------------------------|--------------------|----------------|
-| ![Perfect](./Animations/Final/Day/okay_animation_day.gif) | ![Thirsty](./Animations/Final/Day/thirsty_animation_day.gif) | ![Bad Air Quality](./Animations/Final/Day/dizzy_animation_day.gif) |
+| ![Perfect](./Animations/peak_animation_night.gif) | ![Thirsty](./Animations/Final/Day/thirsty_animation_day.gif) | ![Bad Air Quality](./Animations/Final/Day/dizzy_animation_day.gif) |
 | *Healthy and happy plant in stable conditions* | *Soil moisture too low — needs water!* | *Poor air or gas conditions causing stress* |
 
-| 🌙 **Cold Temperature** | 😵 **Dizzy Mode** | 💤 **Dead Mode** |
+| 🌙 **Cold Temperature** | 😵 **Windy** | 💧 **Watering** |
 |-------------------|------------------|----------------|
-| ![Cold](./Animations/Final/Night/cold_animation.gif) | ![Dizzy](./Animations/Final/Night/dizzy_animation.gif) | ![Rest](./Animations/Final/Day/full_dead_animation_day.gif) |
-| *Relaxed under night lighting* | *Poor air or gas conditions causing stress* | *Plant in worst conditions* |
+| ![Cold](./Animations/Final/Night/cold_animation.gif) | ![Windy](./Animations/wind_trigger_animation.gif) | ![Water](./Animations/watering_plant_night.gif) |
+| *Cold under night lighting* | *In Windy Conditions* | *Watering the plant* |
 
 ---
 ## 🎥 Demo
