@@ -18,7 +18,7 @@
 We grow up learning how to care for pets and people — but not always for the quiet life thriving around us.  
 **Plantagotchi** reimagines that connection by turning plant care into an *interactive, emotional experience* where **nature finally speaks back**.  
 
-It’s not just about keeping a plant alive — it’s about learning to *listen, bond, and grow alongside it*.  
+It’s more than plant care. It’s about paying attention, building a connection, and growing together.
 Through bioelectrical signals and live environmental readings, your plant expresses how it feels through hand-drawn emotions and dialogue bubbles, creating a playful, expressive relationship between you and nature.
 
 
